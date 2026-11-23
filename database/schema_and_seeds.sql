@@ -681,3 +681,13 @@ CREATE TRIGGER trg_sync_apar_on_maintenance
 AFTER UPDATE OF status ON maintenances
 FOR EACH ROW
 EXECUTE FUNCTION trg_fn_sync_apar_on_maintenance_close();
+
+-- ======================================================================================
+-- 5. ROW LEVEL SECURITY (RLS) - AKSES PENUH CLIENT USER & ADMIN
+-- ======================================================================================
+ALTER TABLE rigs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE apar_types DISABLE ROW LEVEL SECURITY;
+ALTER TABLE hfo_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE apars DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inspections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE maintenances DISABLE ROW LEVEL SECURITY;
