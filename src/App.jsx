@@ -12,17 +12,16 @@ import UserInspectForm from './user/pages/UserInspectForm';
 import UserMaintenances from './user/pages/UserMaintenances';
 import UserHistory from './user/pages/UserHistory';
 import UserProfile from './user/pages/UserProfile';
-import AdminPlaceholder from './admin/AdminPlaceholder';
 
 export default function App() {
   return (
     <AparProvider>
       <BrowserRouter>
         <Routes>
-          {/* Halaman Login */}
+          {/* Halaman Login User HFO */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Rute Modul User (Dilindungi ProtectedRoute & Dibungkus UserLayout) */}
+          {/* Rute Modul User Lapangan (Dilindungi ProtectedRoute & Dibungkus UserLayout) */}
           <Route
             path="/user"
             element={
@@ -42,10 +41,7 @@ export default function App() {
             <Route path="profile" element={<UserProfile />} />
           </Route>
 
-          {/* Placeholder Rute Admin */}
-          <Route path="/admin/*" element={<AdminPlaceholder />} />
-
-          {/* Default Redirect */}
+          {/* Default Redirect Seluruhnya ke Modul User */}
           <Route path="/" element={<Navigate to="/user/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/user/dashboard" replace />} />
         </Routes>
