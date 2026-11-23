@@ -273,10 +273,15 @@ export default function UserDashboard() {
           <div className="space-y-3">
             {priorityApars.map(({ apar, reasonTag, tagStyle }) => (
               <div key={apar.id} className="relative">
-                <div className="absolute -top-2 left-3 z-10">
+                <div className="absolute -top-2 left-3 z-10 flex items-center gap-1.5">
                   <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${tagStyle}`}>
                     {reasonTag}
                   </span>
+                  {apar.lastInspectedBy && (
+                    <span className="text-[9px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-900 text-white shadow-xs">
+                      HFO: {apar.lastInspectedBy}
+                    </span>
+                  )}
                 </div>
                 <div className="pt-1.5">
                   <AparCard apar={apar} />

@@ -52,9 +52,11 @@ export default function InspectionDetailModal({ inspection, onClose }) {
             <div className="flex items-center justify-between">
               <span className="text-slate-500 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-slate-400" />
-                Inspektor
+                HFO Penginput
               </span>
-              <span className="font-semibold text-slate-800">{inspection.inspectorName}</span>
+              <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono text-[11px]">
+                {inspection.inspectorName}
+              </span>
             </div>
 
             <div className="flex items-center justify-between">

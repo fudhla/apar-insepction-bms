@@ -4,9 +4,11 @@ import { aparTypesSeed } from '../data/aparTypesSeed';
 import { aparsSeed } from '../data/aparsSeed';
 import { inspectionsSeed } from '../data/inspectionsSeed';
 import { maintenancesSeed } from '../data/maintenancesSeed';
+import { hfoUsersSeed } from '../data/hfoUsersSeed';
 
 const STORAGE_KEYS = {
   USER: 'bms_apar_v1_user',
+  USERS: 'bms_apar_v1_users',
   APARS: 'bms_apar_v1_apars',
   INSPECTIONS: 'bms_apar_v1_inspections',
   MAINTENANCES: 'bms_apar_v1_maintenances'
@@ -15,13 +17,23 @@ const STORAGE_KEYS = {
 const AparContext = createContext(null);
 
 export function AparProvider({ children }) {
-  // Sesi User
+  // Sesi User Aktif
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
+    }
+  });
+
+  // Data Akun HFO (48 User Seed)
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+      return saved ? JSON.parse(saved) : hfoUsersSeed;
+    } catch {
+      return hfoUsersSeed;
     }
   });
 
@@ -55,7 +67,7 @@ export function AparProvider({ children }) {
     }
   });
 
-  // Sinkronisasi ke localStorage dengan proteksi error
+  // Sinkronisasi ke localStorage
   useEffect(() => {
     try {
       if (currentUser) {
@@ -67,6 +79,14 @@ export function AparProvider({ children }) {
       console.error('Gagal menyimpan currentUser ke localStorage', e);
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    } catch (e) {
+      console.error('Gagal menyimpan users ke localStorage', e);
+    }
+  }, [users]);
 
   useEffect(() => {
     try {
@@ -112,15 +132,73 @@ export function AparProvider({ children }) {
       .sort((a, b) => new Date(b.reportedDate || 0) - new Date(a.reportedDate || 0));
   }, [maintenances, currentUser]);
 
-  // Aksi-aksi Modul User
-  const loginAsUser = (inspectorName, rigId) => {
-    const userSession = {
+  // Rekan HFO satu Rig
+  const teamHfos = useMemo(() => {
+    if (!currentUser?.rigId) return [];
+    return users.filter((u) => u.rigId === currentUser.rigId && u.id !== currentUser.id);
+  }, [users, currentUser]);
+
+  /**
+   * Login HFO dengan verifikasi password
+   */
+  const loginHfo = (userId, password) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user) {
+      throw new Error('Akun HFO tidak ditemukan di sistem.');
+    }
+    if (user.password !== password) {
+      throw new Error('Password salah. Password standar demo: 123456');
+    }
+
+    const session = {
+      id: user.id,
+      name: user.name,
+      rigId: user.rigId,
       role: 'user',
-      name: inspectorName.trim() || 'Kru Rig',
-      rigId: rigId
+      position: user.position || 'HFO'
+    };
+    setCurrentUser(session);
+    return session;
+  };
+
+  /**
+   * Login Sederhana (Backward compatible & Preset Demo)
+   */
+  const loginAsUser = (inspectorName, rigId) => {
+    const matchedUser = users.find(
+      (u) => u.rigId === rigId && u.name.toLowerCase() === inspectorName.toLowerCase()
+    );
+
+    const userSession = {
+      id: matchedUser ? matchedUser.id : `hfo-${Date.now()}`,
+      role: 'user',
+      name: matchedUser ? matchedUser.name : inspectorName.trim(),
+      rigId: rigId,
+      position: 'HFO'
     };
     setCurrentUser(userSession);
     return userSession;
+  };
+
+  /**
+   * Ganti Password HFO
+   */
+  const changeUserPassword = (userId, oldPassword, newPassword) => {
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) {
+      throw new Error('Pengguna tidak ditemukan.');
+    }
+    if (targetUser.password !== oldPassword) {
+      throw new Error('Password lama tidak cocok.');
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password baru minimal 6 karakter.');
+    }
+
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, password: newPassword } : u))
+    );
+    return true;
   };
 
   const logout = () => {
@@ -128,8 +206,7 @@ export function AparProvider({ children }) {
   };
 
   /**
-   * Submit Inspeksi Cerdas
-   * Mengatur penguncian N/A untuk CO2, update status APAR, dan auto-create tiket perbaikan jika ada komponen rusak.
+   * Submit Inspeksi Cerdas & Catat Nama HFO
    */
   const submitInspection = ({
     aparId,
@@ -148,12 +225,10 @@ export function AparProvider({ children }) {
     const aparType = aparTypesSeed.find((t) => t.id === targetApar.typeId);
     const sanitizedChecklist = { ...checklist };
 
-    // Aturan Kunci: Jika tipe APAR tidak punya pressure gauge (misal CO2), paksa 'na'
     if (aparType && !aparType.hasPressureGauge) {
       sanitizedChecklist.pressureGauge = 'na';
     }
 
-    // Cek apakah ada komponen yang bernilai 'rusak'
     const hasDamage = Object.entries(sanitizedChecklist).some(
       ([key, val]) => key !== 'pressureGauge' || (aparType && aparType.hasPressureGauge)
         ? val === 'rusak'
@@ -162,13 +237,14 @@ export function AparProvider({ children }) {
 
     const overallStatus = hasDamage ? 'tidak_layak' : 'layak';
     const newInspId = `insp-${Date.now()}`;
+    const inspectorHfo = currentUser?.name || 'HFO Lapangan';
 
     const newInspection = {
       id: newInspId,
       aparId,
       assetCode: targetApar.assetCode,
       rigId: targetApar.rigId,
-      inspectorName: currentUser?.name || 'Inspektor Lapangan',
+      inspectorName: inspectorHfo,
       inspectionDate,
       category,
       thirdPartyVendor: category === 'tahunan' ? thirdPartyVendor : '',
@@ -182,7 +258,7 @@ export function AparProvider({ children }) {
     // 1. Simpan inspeksi baru
     setInspections((prev) => [newInspection, ...prev]);
 
-    // 2. Perbarui status APAR
+    // 2. Perbarui status APAR termasuk nama HFO pengecek terakhir
     setApars((prev) =>
       prev.map((a) =>
         a.id === aparId
@@ -190,7 +266,8 @@ export function AparProvider({ children }) {
               ...a,
               status: overallStatus === 'tidak_layak' ? 'perlu_perbaikan' : 'layak',
               lastInspectionDate: inspectionDate,
-              lastInspectionStatus: overallStatus
+              lastInspectionStatus: overallStatus,
+              lastInspectedBy: inspectorHfo
             }
           : a
       )
@@ -204,13 +281,15 @@ export function AparProvider({ children }) {
         aparId,
         assetCode: targetApar.assetCode,
         rigId: targetApar.rigId,
-        inspectorName: currentUser?.name || 'Inspektor Lapangan',
+        inspectorName: inspectorHfo,
+        reportedBy: inspectorHfo,
         reportedDate: inspectionDate,
         issueDescription: issueDescription || 'Ditemukan kerusakan pada inspeksi komponen',
         findingPhoto,
         status: 'open',
         repairNotes: '',
         evidencePhoto: null,
+        evidenceUploadedBy: null,
         updatedAt: new Date().toISOString().split('T')[0]
       };
       setMaintenances((prev) => [newMaintenance, ...prev]);
@@ -220,9 +299,10 @@ export function AparProvider({ children }) {
   };
 
   /**
-   * Kru Rig mengunggah bukti perbaikan -> status tiket menjadi 'pending_review'
+   * Kru / HFO mengunggah bukti perbaikan
    */
   const uploadRepairEvidence = (maintenanceId, photoBase64, repairNotes) => {
+    const uploaderName = currentUser?.name || 'HFO Lapangan';
     setMaintenances((prev) =>
       prev.map((m) => {
         if (m.id === maintenanceId) {
@@ -230,7 +310,8 @@ export function AparProvider({ children }) {
             ...m,
             status: 'pending_review',
             evidencePhoto: photoBase64,
-            repairNotes: repairNotes || 'Telah diperbaiki oleh kru lapangan',
+            evidenceUploadedBy: uploaderName,
+            repairNotes: repairNotes || 'Telah diperbaiki oleh tim HFO lapangan',
             updatedAt: new Date().toISOString().split('T')[0]
           };
         }
@@ -244,11 +325,13 @@ export function AparProvider({ children }) {
    */
   const resetDemoData = () => {
     localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.USERS);
     localStorage.removeItem(STORAGE_KEYS.APARS);
     localStorage.removeItem(STORAGE_KEYS.INSPECTIONS);
     localStorage.removeItem(STORAGE_KEYS.MAINTENANCES);
 
     setCurrentUser(null);
+    setUsers(hfoUsersSeed);
     setApars(aparsSeed);
     setInspections(inspectionsSeed);
     setMaintenances(maintenancesSeed);
@@ -256,13 +339,18 @@ export function AparProvider({ children }) {
 
   const value = {
     currentUser,
+    users,
+    hfoUsers: users,
+    teamHfos,
     userApars,
     userInspections,
     userMaintenances,
     aparTypes: aparTypesSeed,
     rigs: rigsSeed,
     rawApars: apars,
+    loginHfo,
     loginAsUser,
+    changeUserPassword,
     logout,
     submitInspection,
     uploadRepairEvidence,

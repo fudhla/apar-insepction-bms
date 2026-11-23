@@ -125,6 +125,24 @@ export default function UserAparDetail() {
                 </span>
               </div>
             </div>
+
+            {/* Micro-panel Info Inspeksi Terakhir Oleh HFO */}
+            <div className="p-3 bg-red-50/60 rounded-xl border border-red-200/70 flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] font-mono uppercase text-red-700 font-bold block">
+                  Inspeksi Terakhir:
+                </span>
+                <span className="text-slate-900 font-bold mt-0.5 block">
+                  {apar.lastInspectedBy ? apar.lastInspectedBy : 'Belum Pernah Diinspeksi'}
+                </span>
+                <span className="text-[11px] text-slate-500 font-mono">
+                  {apar.lastInspectionDate ? formatDateDisplay(apar.lastInspectionDate) : '-'}
+                </span>
+              </div>
+              <span className="px-2 py-1 rounded bg-white text-slate-700 font-mono text-[10px] font-bold border border-red-200">
+                HFO {apar.rigId}
+              </span>
+            </div>
           </div>
 
           {/* Kolom Kanan: QR Tag Box (1/3) */}
@@ -195,8 +213,9 @@ export default function UserAparDetail() {
                       {item.category} {item.thirdPartyVendor ? `(${item.thirdPartyVendor})` : ''}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Inspektor: {item.inspectorName}
+                  <div className="text-[11px] text-slate-600 mt-1 flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono bg-slate-100 text-slate-700 px-1 py-0.2 rounded font-bold">HFO</span>
+                    <strong className="text-slate-800">{item.inspectorName}</strong>
                   </div>
                 </div>
 

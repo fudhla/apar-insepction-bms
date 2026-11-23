@@ -11,7 +11,8 @@ import {
   Shield,
   ChevronRight,
   Flame,
-  Radio
+  Radio,
+  User
 } from 'lucide-react';
 
 export default function UserLayout() {
@@ -64,21 +65,28 @@ export default function UserLayout() {
         </div>
 
         {/* Status Unit Rig Aktif */}
-        <div className="p-3.5 mx-3 my-3 bg-slate-800/60 border border-slate-700/60 rounded-xl space-y-1.5">
+        <NavLink
+          to="/user/profile"
+          title="Buka Pengaturan Akun HFO"
+          className="p-3.5 mx-3 my-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl space-y-1.5 transition-colors block group"
+        >
           <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
             <span className="flex items-center gap-1.5 text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              TERMINAL AKTIF
+              HFO LAPANGAN
             </span>
             <span className="font-bold text-white bg-red-600/90 px-1.5 py-0.2 rounded text-[10px]">
               {currentRig.id}
             </span>
           </div>
-          <div className="text-xs font-bold text-white truncate">{currentRig.name}</div>
-          <div className="text-[11px] text-slate-400 truncate">
-            Kru: <span className="text-slate-200 font-medium">{currentUser?.name}</span>
+          <div className="text-xs font-bold text-white truncate group-hover:text-red-400 transition-colors">
+            {currentUser?.name}
           </div>
-        </div>
+          <div className="text-[10px] text-slate-400 truncate flex items-center justify-between font-mono">
+            <span>{currentRig.name}</span>
+            <span className="text-red-400 font-semibold group-hover:underline">Akun →</span>
+          </div>
+        </NavLink>
 
         {/* Menu Navigasi Desktop */}
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
@@ -134,8 +142,25 @@ export default function UserLayout() {
           })}
         </nav>
 
-        {/* Logout Desktop */}
-        <div className="p-3 border-t border-slate-800">
+        {/* Logout & Profile Desktop */}
+        <div className="p-3 border-t border-slate-800 space-y-1.5">
+          <NavLink
+            to="/user/profile"
+            className={({ isActive }) =>
+              `w-full flex items-center justify-between py-2 px-3 text-xs font-semibold rounded-xl transition-colors ${
+                isActive
+                  ? 'bg-slate-800 text-white font-bold'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+              }`
+            }
+          >
+            <div className="flex items-center gap-2">
+              <User className="w-3.5 h-3.5" />
+              <span>Ganti Password / Akun</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+          </NavLink>
+
           <button
             type="button"
             onClick={handleLogout}
@@ -171,14 +196,29 @@ export default function UserLayout() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Ganti Rig / Keluar"
-            className="p-2 text-slate-400 hover:text-white rounded-lg transition-colors shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <NavLink
+              to="/user/profile"
+              title="Profil & Ganti Password HFO"
+              className={({ isActive }) =>
+                `p-2 rounded-lg transition-colors flex items-center gap-1 ${
+                  isActive
+                    ? 'bg-red-600 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`
+              }
+            >
+              <User className="w-4 h-4" />
+            </NavLink>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Ganti Rig / Keluar"
+              className="p-2 text-slate-400 hover:text-white rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </header>
 
         {/* Konten Halaman */}

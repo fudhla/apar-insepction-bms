@@ -207,6 +207,11 @@ export default function UserMaintenances() {
                       <span className="text-[10px] font-mono text-blue-600">MENUNGGU VERIFIKASI ADMIN</span>
                     </div>
                     <p className="text-slate-700 font-medium">{ticket.repairNotes}</p>
+                    {ticket.evidenceUploadedBy && (
+                      <span className="text-[11px] text-blue-900 font-medium block mt-1">
+                        Bukti diunggah oleh: <strong className="font-bold">{ticket.evidenceUploadedBy}</strong>
+                      </span>
+                    )}
                     <img
                       src={ticket.evidencePhoto}
                       alt="Bukti"
@@ -217,12 +222,14 @@ export default function UserMaintenances() {
 
                 {/* Card Footer */}
                 <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs border-t border-slate-100">
-                  <div className="flex items-center gap-3 text-slate-400 text-[11px] font-mono">
+                  <div className="flex flex-wrap items-center gap-3 text-slate-500 text-[11px] font-mono">
                     <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       {formatDateDisplay(ticket.reportedDate)}
                     </span>
-                    <span>Pelapor: {ticket.inspectorName}</span>
+                    <span>
+                      Dilaporkan oleh: <strong className="text-slate-800">{ticket.reportedBy || ticket.inspectorName}</strong>
+                    </span>
                   </div>
 
                   {canUploadEvidence && (

@@ -22,7 +22,8 @@ export default function UserAparList() {
         apar.assetCode.toLowerCase().includes(q) ||
         (apar.serialNo && apar.serialNo.toLowerCase().includes(q)) ||
         (apar.placement && apar.placement.toLowerCase().includes(q)) ||
-        (apar.brandModel && apar.brandModel.toLowerCase().includes(q));
+        (apar.brandModel && apar.brandModel.toLowerCase().includes(q)) ||
+        (apar.lastInspectedBy && apar.lastInspectedBy.toLowerCase().includes(q));
 
       // 2. Type Filter
       const matchType = selectedType === 'all' || apar.typeId === selectedType;

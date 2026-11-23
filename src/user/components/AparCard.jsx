@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../../shared/components/StatusBadge';
-import { calculateHydrotest } from '../../shared/utils/hydrotestUtils';
-import { MapPin, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { calculateHydrotest, formatDateDisplay } from '../../shared/utils/hydrotestUtils';
+import { MapPin, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
 
 export default function AparCard({ apar }) {
   const navigate = useNavigate();
@@ -41,7 +41,7 @@ export default function AparCard({ apar }) {
       </div>
 
       {/* Baris Tengah: Penempatan & Spesifikasi */}
-      <div className="pl-2 mb-3">
+      <div className="pl-2 mb-2.5">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wide">
           <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span className="truncate">{apar.placement || 'LOKASI BELUM DITENTUKAN'}</span>
@@ -59,8 +59,23 @@ export default function AparCard({ apar }) {
         )}
       </div>
 
+      {/* Micro-label Pelacakan Nama HFO Penginput */}
+      <div className="pl-2 mb-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-1.5 text-slate-600 truncate">
+          <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          {apar.lastInspectedBy ? (
+            <span className="truncate">
+              Dicek: <strong className="text-slate-800">{apar.lastInspectedBy}</strong>{' '}
+              <span className="text-slate-400 font-mono text-[10px]">({formatDateDisplay(apar.lastInspectionDate)})</span>
+            </span>
+          ) : (
+            <span className="text-slate-400 italic text-[10px]">Belum pernah diinspeksi</span>
+          )}
+        </div>
+      </div>
+
       {/* Baris Bawah: Status Hydrotest & Status Bulan Ini */}
-      <div className="pl-2 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+      <div className="pl-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
         {/* Hydrotest Tag */}
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${hydrotest.badgeColor}`}

@@ -11,6 +11,7 @@ import UserScanPage from './user/pages/UserScanPage';
 import UserInspectForm from './user/pages/UserInspectForm';
 import UserMaintenances from './user/pages/UserMaintenances';
 import UserHistory from './user/pages/UserHistory';
+import UserProfile from './user/pages/UserProfile';
 import AdminPlaceholder from './admin/AdminPlaceholder';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="inspect/:aparId" element={<UserInspectForm />} />
             <Route path="maintenances" element={<UserMaintenances />} />
             <Route path="history" element={<UserHistory />} />
+            <Route path="profile" element={<UserProfile />} />
           </Route>
 
           {/* Placeholder Rute Admin */}

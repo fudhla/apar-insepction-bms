@@ -127,14 +127,14 @@ export default function UserHistory() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-slate-500">
-                  <span className="flex items-center gap-1 font-medium text-slate-700">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <span className="flex items-center gap-1 font-medium text-slate-700 font-mono text-[11px]">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     {formatDateDisplay(item.inspectionDate)}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-slate-400" />
-                    {item.inspectorName}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-bold border border-slate-200">
+                    <User className="w-3 h-3 text-red-600" />
+                    Oleh: {item.inspectorName}
                   </span>
                 </div>
 
