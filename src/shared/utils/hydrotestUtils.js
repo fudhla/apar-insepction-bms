@@ -86,58 +86,103 @@ function findMonthNumber(word) {
 }
 
 /**
- * Menghitung tanggal & status Hydrotest (+5 tahun)
+ * Menghitung tanggal & status Hydrotest (+5 tahun atau dari tanggal uji Admin)
  */
-export function calculateHydrotest(rawManufactureDate) {
-  const parsedDate = parseManufactureDate(rawManufactureDate);
+export function calculateHydrotest(rawManufactureDate, explicitNextDate = null, explicitLastDate = null, vendor = null) {
+  // Dukung pemanggilan dengan objek APAR utuh: calculateHydrotest(apar)
+  let mDateInput = rawManufactureDate;
+  let nextDateInput = explicitNextDate;
+  let lastDateInput = explicitLastDate;
+  let vendorInput = vendor;
 
-  if (!parsedDate) {
+  if (rawManufactureDate && typeof rawManufactureDate === 'object' && !(rawManufactureDate instanceof Date)) {
+    mDateInput = rawManufactureDate.manufactureDate || rawManufactureDate.manufacture_date;
+    nextDateInput = rawManufactureDate.nextHydrotestDate || rawManufactureDate.next_hydrotest_date;
+    lastDateInput = rawManufactureDate.lastHydrotestDate || rawManufactureDate.last_hydrotest_date;
+    vendorInput = rawManufactureDate.hydrotestVendor || rawManufactureDate.hydrotest_vendor || rawManufactureDate.vendor;
+  }
+
+  const parsedManufactureDate = parseManufactureDate(mDateInput);
+  let hDate = null;
+  let hydrotestDateStr = '-';
+  let isExplicit = false;
+
+  // 1. Jika ada nextHydrotestDate eksplisit dari Admin (misal hasil uji ulang / sertifikasi)
+  if (nextDateInput) {
+    const parsedNext = parseManufactureDate(nextDateInput) || (typeof nextDateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(nextDateInput) ? nextDateInput : null);
+    if (parsedNext) {
+      const d = new Date(parsedNext);
+      if (!isNaN(d.getTime())) {
+        hDate = d;
+        hydrotestDateStr = parsedNext;
+        isExplicit = true;
+      }
+    }
+  }
+
+  // 2. Jika tidak ada nextHydrotestDate eksplisit, hitung +5 tahun dari tanggal manufaktur
+  if (!hDate && parsedManufactureDate) {
+    const mDate = new Date(parsedManufactureDate);
+    if (!isNaN(mDate.getTime())) {
+      hDate = new Date(mDate);
+      hDate.setFullYear(hDate.getFullYear() + 5);
+      hydrotestDateStr = hDate.toISOString().split('T')[0];
+    }
+  }
+
+  if (!hDate) {
     return {
       isValid: false,
       parsedManufactureDate: null,
+      lastHydrotestDate: lastDateInput || null,
+      lastHydrotestDateStr: lastDateInput || '-',
       hydrotestDate: null,
       hydrotestDateStr: '-',
       status: 'perlu_cek_fisik',
       label: 'Perlu Cek Fisik',
+      shortLabel: 'Perlu Cek Fisik',
       badgeColor: 'bg-slate-100 text-slate-700 border-slate-300',
       daysRemaining: null,
       isExpired: false,
-      isDueSoon: false
+      isDueSoon: false,
+      vendor: vendorInput || null,
+      isExplicit: false
     };
   }
-
-  const mDate = new Date(parsedDate);
-  // Tambahkan tepat 5 tahun
-  const hDate = new Date(mDate);
-  hDate.setFullYear(hDate.getFullYear() + 5);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const diffTime = hDate.getTime() - today.getTime();
   const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const hydrotestDateStr = hDate.toISOString().split('T')[0];
+  const expYear = hDate.getFullYear();
 
   if (daysRemaining < 0) {
     return {
       isValid: true,
-      parsedManufactureDate: parsedDate,
+      parsedManufactureDate,
+      lastHydrotestDate: lastDateInput || parsedManufactureDate,
+      lastHydrotestDateStr: lastDateInput || parsedManufactureDate || '-',
       hydrotestDate: hDate,
       hydrotestDateStr,
       status: 'kadaluarsa',
       label: `Kadaluarsa (${Math.abs(daysRemaining)} hari lalu)`,
-      shortLabel: `Kadaluarsa • Exp ${hDate.getFullYear()}`,
+      shortLabel: `Kadaluarsa • Exp ${expYear}`,
       badgeColor: 'bg-rose-100 text-rose-800 border-rose-300',
       daysRemaining,
       isExpired: true,
-      isDueSoon: false
+      isDueSoon: false,
+      vendor: vendorInput || null,
+      isExplicit
     };
   }
 
   if (daysRemaining <= 60) {
     return {
       isValid: true,
-      parsedManufactureDate: parsedDate,
+      parsedManufactureDate,
+      lastHydrotestDate: lastDateInput || parsedManufactureDate,
+      lastHydrotestDateStr: lastDateInput || parsedManufactureDate || '-',
       hydrotestDate: hDate,
       hydrotestDateStr,
       status: 'segera',
@@ -146,22 +191,28 @@ export function calculateHydrotest(rawManufactureDate) {
       badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
       daysRemaining,
       isExpired: false,
-      isDueSoon: true
+      isDueSoon: true,
+      vendor: vendorInput || null,
+      isExplicit
     };
   }
 
   return {
     isValid: true,
-    parsedManufactureDate: parsedDate,
+    parsedManufactureDate,
+    lastHydrotestDate: lastDateInput || parsedManufactureDate,
+    lastHydrotestDateStr: lastDateInput || parsedManufactureDate || '-',
     hydrotestDate: hDate,
     hydrotestDateStr,
     status: 'aman',
-    label: `Aman (Exp ${hDate.getFullYear()})`,
-    shortLabel: `Aman • Exp ${hDate.getFullYear()}`,
+    label: `Aman (Exp ${expYear})`,
+    shortLabel: `Aman • Exp ${expYear}`,
     badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
     daysRemaining,
     isExpired: false,
-    isDueSoon: false
+    isDueSoon: false,
+    vendor: vendorInput || null,
+    isExplicit
   };
 }
 

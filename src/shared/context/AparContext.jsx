@@ -335,6 +335,24 @@ export function AparProvider({ children }) {
         // Filter ketat: Hanya refresh jika APAR milik Rig yang sedang login
         if (!isRigEventForCurrentUser('apars', payload)) return;
         fetchAllData({ silent: true });
+
+        // Notifikasi cerdas jika Admin mengunggah dokumen / memperbarui data Hydrotest APAR
+        const newRecord = payload?.new;
+        const oldRecord = payload?.old;
+        if (
+          payload?.eventType === 'UPDATE' &&
+          newRecord &&
+          (newRecord.hydrotest_doc_url !== oldRecord?.hydrotest_doc_url ||
+            newRecord.last_hydrotest_date !== oldRecord?.last_hydrotest_date ||
+            newRecord.next_hydrotest_date !== oldRecord?.next_hydrotest_date ||
+            newRecord.hydrotest_vendor !== oldRecord?.hydrotest_vendor)
+        ) {
+          const vendorInfo = newRecord.hydrotest_vendor ? ` (${newRecord.hydrotest_vendor})` : '';
+          showToast(
+            'success',
+            `Sertifikasi Hydrotest APAR ${newRecord.asset_code || ''} telah diperbarui Admin${vendorInfo}`
+          );
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inspections' }, (payload) => {
         // Filter ketat: Hanya proses jika inspeksi milik Rig yang sedang login

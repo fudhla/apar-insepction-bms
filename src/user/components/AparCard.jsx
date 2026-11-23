@@ -12,13 +12,14 @@ import {
   ClipboardCheck,
   Eye,
   Edit3,
-  Trash2
+  Trash2,
+  FileCheck
 } from 'lucide-react';
 
 export default function AparCard({ apar, onEdit, onDelete }) {
   const navigate = useNavigate();
 
-  const hydrotest = calculateHydrotest(apar.manufactureDate);
+  const hydrotest = calculateHydrotest(apar);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const isInspectedThisMonth = apar.lastInspectionDate?.startsWith(currentMonth);
 
@@ -87,12 +88,23 @@ export default function AparCard({ apar, onEdit, onDelete }) {
 
       {/* Baris Bawah: Status Hydrotest & Status Bulan Ini */}
       <div className="pl-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
-        {/* Hydrotest Tag */}
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${hydrotest.badgeColor}`}
-        >
-          {hydrotest.shortLabel || hydrotest.label}
-        </span>
+        {/* Hydrotest Tag & Certification Indicator */}
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${hydrotest.badgeColor}`}
+          >
+            {hydrotest.shortLabel || hydrotest.label}
+          </span>
+          {apar.hydrotestDocUrl && (
+            <span
+              title={`Tersertifikasi oleh ${apar.hydrotestVendor || 'Admin HSE'}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 truncate max-w-[140px]"
+            >
+              <FileCheck className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+              <span className="truncate">{apar.hydrotestVendor ? `Cert • ${apar.hydrotestVendor}` : 'Tersertifikasi'}</span>
+            </span>
+          )}
+        </div>
 
         {/* Indikator Inspeksi Bulan Ini / Temuan Kerusakan */}
         <div className="flex items-center gap-1 text-[11px]">

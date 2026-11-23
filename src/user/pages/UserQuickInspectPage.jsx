@@ -47,7 +47,7 @@ export default function UserQuickInspectPage() {
     const scoredList = userApars.map((apar) => {
       const isInspected = apar.lastInspectionDate?.startsWith(currentMonth);
       const isDamaged = apar.status === 'perlu_perbaikan';
-      const hydro = calculateHydrotest(apar.manufactureDate);
+      const hydro = calculateHydrotest(apar);
 
       let score = 0;
       let badgeTag = 'SUDAH DICEK';

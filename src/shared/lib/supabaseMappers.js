@@ -146,6 +146,8 @@ export function fromSupabaseApar(row, aparTypes = []) {
     manufactureDate: row.manufacture_date || null,
     lastHydrotestDate: row.last_hydrotest_date || null,
     nextHydrotestDate: row.next_hydrotest_date || null,
+    hydrotestVendor: row.hydrotest_vendor || row.hydrotest_vendor_name || null,
+    hydrotestDocUrl: row.hydrotest_doc_url || row.hydrotest_doc || row.hydrotest_certificate_url || null,
     status: row.status || 'layak', // 'layak' | 'perlu_perbaikan' | 'afkir'
     hasPressureGauge,
     createdAt: row.created_at,
@@ -156,7 +158,7 @@ export function fromSupabaseApar(row, aparTypes = []) {
 }
 
 export function toSupabaseApar(apar) {
-  return {
+  const payload = {
     id: apar.id,
     asset_code: apar.assetCode || apar.asset_code,
     rig_id: apar.rigId || apar.rig_id,
@@ -171,6 +173,17 @@ export function toSupabaseApar(apar) {
     status: apar.status || 'layak',
     created_at: apar.createdAt || new Date().toISOString()
   };
+
+  const vendor = apar.hydrotestVendor || apar.hydrotest_vendor;
+  if (vendor) {
+    payload.hydrotest_vendor = vendor;
+  }
+  const docUrl = apar.hydrotestDocUrl || apar.hydrotest_doc_url || apar.hydrotestDoc;
+  if (docUrl) {
+    payload.hydrotest_doc_url = docUrl;
+  }
+
+  return payload;
 }
 
 // 6. INSPECTIONS MAPPER

@@ -39,7 +39,7 @@ export default function UserDashboard() {
   const layakCount = userApars.filter((a) => a.status === 'layak').length;
 
   const needAttentionApars = userApars.filter((a) => {
-    const hydro = calculateHydrotest(a.manufactureDate);
+    const hydro = calculateHydrotest(a);
     return a.status === 'perlu_perbaikan' || hydro.isExpired || hydro.isDueSoon;
   });
   const needAttentionCount = needAttentionApars.length;
@@ -47,7 +47,7 @@ export default function UserDashboard() {
   // Smart Priority Reminders
   const priorityApars = [...userApars]
     .map((apar) => {
-      const hydro = calculateHydrotest(apar.manufactureDate);
+      const hydro = calculateHydrotest(apar);
       const isChecked = apar.lastInspectionDate?.startsWith(currentMonth);
 
       let priorityScore = 0;

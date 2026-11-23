@@ -18,7 +18,11 @@ import {
   Edit3,
   Trash2,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  FileText,
+  FileCheck,
+  Download,
+  X
 } from 'lucide-react';
 
 export default function UserAparDetail() {
@@ -28,6 +32,7 @@ export default function UserAparDetail() {
 
   const [selectedInspection, setSelectedInspection] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isHydrotestDocModalOpen, setIsHydrotestDocModalOpen] = useState(false);
 
   const apar = userApars.find((a) => a.id === id) || rawApars?.find((a) => a.id === id);
 
@@ -63,7 +68,7 @@ export default function UserAparDetail() {
   }
 
   const aparType = aparTypes.find((t) => t.id === apar.typeId);
-  const hydrotest = calculateHydrotest(apar.manufactureDate);
+  const hydrotest = calculateHydrotest(apar);
   const aparHistory = userInspections.filter((i) => i.aparId === apar.id);
 
   const handleDelete = async () => {
@@ -165,14 +170,68 @@ export default function UserAparDetail() {
 
               <div className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/80">
                 <span className="text-slate-400 block text-[10px] uppercase font-mono">Status Hydrotest (+5 Thn)</span>
-                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold border mt-1 ${hydrotest.badgeColor}`}>
-                  {hydrotest.label}
-                </span>
-                <span className="text-[10px] text-slate-500 block mt-1">
-                  Jatuh Tempo: {formatDateDisplay(hydrotest.hydrotestDateStr)}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${hydrotest.badgeColor}`}>
+                    {hydrotest.label}
+                  </span>
+                  {apar.hydrotestVendor && (
+                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      {apar.hydrotestVendor}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1.5 space-y-0.5 text-[10px] text-slate-500 font-mono">
+                  {apar.lastHydrotestDate && (
+                    <div className="flex justify-between">
+                      <span>Uji Terakhir:</span>
+                      <strong className="text-slate-700">{formatDateDisplay(apar.lastHydrotestDate)}</strong>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Jatuh Tempo:</span>
+                    <strong className="text-slate-700">{formatDateDisplay(hydrotest.hydrotestDateStr)}</strong>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* HSE Certified Hydrotest Document Card */}
+            {apar.hydrotestDocUrl && (
+              <div className="p-3.5 bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-slate-50 rounded-xl border border-blue-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-800 bg-blue-100/90 border border-blue-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <FileCheck className="w-3 h-3 text-blue-700" />
+                        Tersertifikasi • {apar.hydrotestVendor || 'Vendor Resmi'}
+                      </span>
+                      {apar.lastHydrotestDate && (
+                        <span className="text-[10px] font-mono text-slate-500">
+                          Uji: {formatDateDisplay(apar.lastHydrotestDate)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-700 mt-1 font-medium">
+                      Dokumen hasil uji tekan resmi diunggah dan divalidasi oleh Administrator HSE (Read-Only).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsHydrotestDocModalOpen(true)}
+                    className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm btn-tactile"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Lihat Dokumen Hydrotest</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Micro-panel Info Inspeksi Terakhir Oleh HFO */}
             <div className="p-3 bg-red-50/60 rounded-xl border border-red-200/70 flex items-center justify-between text-xs">
@@ -323,6 +382,113 @@ export default function UserAparDetail() {
         onClose={() => setIsEditModalOpen(false)}
         editData={apar}
       />
+
+      {/* Modal Dokumen Sertifikasi Hydrotest (Read-Only) */}
+      {isHydrotestDocModalOpen && apar.hydrotestDocUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setIsHydrotestDocModalOpen(false)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 text-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">
+                    Sertifikasi Resmi Hydrotest (Read-Only)
+                  </span>
+                </div>
+                <h3 className="text-sm font-mono font-bold text-white mt-0.5">
+                  Dokumen Uji Tekan — {apar.assetCode}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHydrotestDocModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Info Bar */}
+            <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+              <span className="text-slate-300">
+                Vendor: <strong className="text-white">{apar.hydrotestVendor || 'Pihak Ketiga'}</strong>
+              </span>
+              <span className="text-slate-300">
+                Uji: <strong className="text-white">{formatDateDisplay(apar.lastHydrotestDate)}</strong>
+              </span>
+              <span className="text-slate-300">
+                Exp: <strong className="text-emerald-400">{formatDateDisplay(hydrotest.hydrotestDateStr)}</strong>
+              </span>
+            </div>
+
+            {/* Document Preview Content */}
+            <div className="p-3 bg-black/95 flex items-center justify-center max-h-[70vh] overflow-y-auto">
+              {apar.hydrotestDocUrl.startsWith('data:application/pdf') || apar.hydrotestDocUrl.toLowerCase().includes('.pdf') ? (
+                <div className="w-full h-[65vh] flex flex-col items-center justify-center text-center p-4">
+                  <FileText className="w-16 h-16 text-blue-400 mb-3" />
+                  <span className="text-sm font-bold text-white mb-1">
+                    Dokumen Sertifikat Format PDF
+                  </span>
+                  <span className="text-xs text-slate-400 mb-4 max-w-sm">
+                    Dokumen hasil uji tekan tabung {apar.assetCode} tersimpan dalam format berkas PDF resmi.
+                  </span>
+                  <a
+                    href={apar.hydrotestDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={`Sertifikat-Hydrotest-${apar.assetCode}.pdf`}
+                    className="py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Buka / Unduh Dokumen PDF</span>
+                  </a>
+                </div>
+              ) : (
+                <img
+                  src={apar.hydrotestDocUrl}
+                  alt={`Sertifikat Hydrotest ${apar.assetCode}`}
+                  className="max-h-[68vh] w-auto object-contain rounded-lg shadow-md"
+                />
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-400 font-mono">
+                * Dokumen diunggah khusus oleh Administrator HSE. Personel Rig hanya memiliki wewenang lihat (Read-Only).
+              </span>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                {apar.hydrotestDocUrl && (
+                  <a
+                    href={apar.hydrotestDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={`Hydrotest-${apar.assetCode}`}
+                    className="text-xs text-blue-400 hover:text-blue-300 font-mono py-1.5 px-3 rounded-lg border border-blue-900/60 hover:bg-blue-950/50 transition-colors flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsHydrotestDocModalOpen(false)}
+                  className="text-xs text-slate-300 hover:text-white font-mono py-1.5 px-3 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

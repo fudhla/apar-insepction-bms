@@ -89,8 +89,13 @@ export default function AparFormModal({ isOpen, onClose, editData = null, onSucc
   // Kalkulasi Hydrotest otomatis saat tanggal produksi berubah
   const hydrotestPreview = useMemo(() => {
     if (!manufactureDate) return null;
-    return calculateHydrotest(manufactureDate);
-  }, [manufactureDate]);
+    return calculateHydrotest(
+      manufactureDate,
+      editData?.nextHydrotestDate,
+      editData?.lastHydrotestDate,
+      editData?.hydrotestVendor
+    );
+  }, [manufactureDate, editData]);
 
   if (!isOpen) return null;
 
@@ -347,6 +352,26 @@ export default function AparFormModal({ isOpen, onClose, editData = null, onSucc
               </select>
             </div>
           </div>
+
+          {/* Banner Dokumen Hydrotest Khusus Admin HSE (Read-Only untuk User) */}
+          {editData?.hydrotestDocUrl && (
+            <div className="p-3 rounded-xl bg-blue-50/90 border border-blue-200/90 flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <div>
+                  <span className="font-bold text-blue-900 block">
+                    Tersertifikasi • {editData.hydrotestVendor || 'Vendor Resmi'}
+                  </span>
+                  <span className="text-[10px] text-blue-700 font-mono">
+                    Uji: {formatDateDisplay(editData.lastHydrotestDate)} • Exp: {formatDateDisplay(editData.nextHydrotestDate)}
+                  </span>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
+                Wewenang Admin HSE
+              </span>
+            </div>
+          )}
 
           {/* Baris 5: Tanggal Manufaktur & Auto Hydrotest (+5 Tahun) */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
