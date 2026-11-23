@@ -72,6 +72,7 @@ CREATE TABLE inspections (
   checklist JSONB NOT NULL, -- {handle, hose, nozzle, cylinderGuard, pinHandle, pressureGauge, cylinder}
   overall_status VARCHAR(30) NOT NULL CHECK (overall_status IN ('layak', 'tidak_layak')),
   notes TEXT,
+  inspection_photo TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -86,6 +87,7 @@ CREATE TABLE maintenances (
   action_type VARCHAR(50) DEFAULT 'perbaikan',
   status VARCHAR(30) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'pending_review', 'closed')),
   vendor_name VARCHAR(100),
+  finding_photo TEXT,
   evidence_photo TEXT,
   evidence_uploaded_by VARCHAR(100),
   repair_notes TEXT,
@@ -685,6 +687,9 @@ EXECUTE FUNCTION trg_fn_sync_apar_on_maintenance_close();
 -- ======================================================================================
 -- 5. ROW LEVEL SECURITY (RLS) - AKSES PENUH CLIENT USER & ADMIN
 -- ======================================================================================
+ALTER TABLE inspections ADD COLUMN IF NOT EXISTS inspection_photo TEXT;
+ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS finding_photo TEXT;
+
 ALTER TABLE rigs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE apar_types DISABLE ROW LEVEL SECURITY;
 ALTER TABLE hfo_users DISABLE ROW LEVEL SECURITY;

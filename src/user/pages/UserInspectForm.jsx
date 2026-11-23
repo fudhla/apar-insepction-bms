@@ -111,19 +111,48 @@ export default function UserInspectForm() {
     e.preventDefault();
 
     if (category === 'tahunan' && !thirdPartyVendor.trim()) {
-      showError('Vendor Pihak Ke-3 Wajib Diisi', 'Nama vendor sertifikasi pihak ke-3 wajib diisi untuk inspeksi kategori Tahunan (contoh: Sepakat).');
+      showError(
+        'Vendor Pihak Ke-3 Wajib Diisi',
+        'Nama vendor sertifikasi pihak ke-3 wajib diisi untuk inspeksi kategori Tahunan (contoh: Sepakat).'
+      );
       return;
     }
 
     if (hasDamage && !issueDescription.trim()) {
-      showError('Catatan Kerusakan Wajib Diisi', 'Minimal 1 komponen fisik tercatat Rusak! Harap jelaskan temuan pada kolom Hal Perbaikan sebelum menyimpan.');
+      showError(
+        'Hal Perbaikan Wajib Diisi',
+        'Minimal 1 komponen fisik tercatat Rusak! Harap jelaskan temuan pada kolom Hal Perbaikan sebelum menyimpan.'
+      );
       return;
     }
+
+    if (hasDamage && !findingPhoto) {
+      showError(
+        'Foto Bukti Kerusakan Wajib Diunggah',
+        'Minimal 1 komponen fisik tercatat Rusak! Harap lampirkan foto fisik komponen yang rusak agar Admin Pusat dapat memeriksa temuan awal.'
+      );
+      return;
+    }
+
+    const COMPONENT_LABELS = {
+      handle: 'Handle',
+      hose: 'Hose',
+      nozle: 'Nozzle',
+      pengamanTabung: 'Pengaman Tabung',
+      pinHandle: 'Pin Segel',
+      pressureGauge: 'Pressure Gauge',
+      tabung: 'Tabung'
+    };
+
+    const damagedNames = damagedItems.map(([key]) => COMPONENT_LABELS[key] || key);
+    const formattedIssue = hasDamage
+      ? `[${damagedNames.join(', ')}] ${issueDescription.trim()}`
+      : (issueDescription.trim() || '');
 
     const confirmed = await showConfirm({
       title: hasDamage ? 'Konfirmasi Temuan Kerusakan' : 'Konfirmasi Simpan Inspeksi',
       text: hasDamage
-        ? `Tabung ${apar.assetCode} tercatat ada ${damagedItems.length} komponen rusak. Tiket perbaikan aktif (Work Order) otomatis diterbitkan ke Admin. Lanjutkan?`
+        ? `Tabung ${apar.assetCode} tercatat ada ${damagedItems.length} komponen rusak (${damagedNames.join(', ')}). Tiket perbaikan aktif (Work Order) otomatis diterbitkan ke Admin. Lanjutkan?`
         : `Simpan hasil pemeriksaan tabung ${apar.assetCode} sebagai Kondisi Layak Operasi?`,
       confirmText: hasDamage ? 'Ya, Terbitkan Tiket' : 'Ya, Simpan Layak',
       isDanger: hasDamage
@@ -133,13 +162,13 @@ export default function UserInspectForm() {
 
     try {
       setIsSubmitting(true);
-      const res = submitInspection({
+      const res = await submitInspection({
         aparId: apar.id,
         inspectionDate,
         category,
         thirdPartyVendor,
         checklist,
-        issueDescription,
+        issueDescription: formattedIssue,
         findingPhoto
       });
 
@@ -451,15 +480,15 @@ export default function UserInspectForm() {
                 />
               </div>
 
-              {/* Kolom 3: Upload Foto Fisik */}
+              {/* Kolom 3: Upload Foto Fisik Kerusakan */}
               <div className="md:col-span-1">
                 <span className="block text-xs font-bold text-rose-950 mb-1">
-                  Foto Temuan (Opsional)
+                  Foto Bukti Kerusakan <span className="text-red-600">*</span>
                 </span>
                 <div className="flex items-center gap-2">
                   <label className="flex-1 px-3 py-2 bg-white border border-rose-300 hover:border-rose-400 text-rose-900 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm btn-tactile">
                     <Camera className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Pilih Foto</span>
+                    <span>{photoPreview ? 'Ganti Foto' : 'Pilih Foto'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -497,6 +526,52 @@ export default function UserInspectForm() {
                   </span>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4.b Dokumentasi Opsional jika Semua Komponen Layak */}
+        {!hasDamage && (
+          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <span className="font-bold text-slate-800 block">Kondisi 7 Titik Komponen Bagus (Layak)</span>
+                <span className="text-[11px] text-slate-500">Foto fisik tabung saat pemeriksaan (opsional).</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm btn-tactile">
+                <Camera className="w-3.5 h-3.5 text-slate-500" />
+                <span>{photoPreview ? 'Ganti Foto' : 'Foto Tabung (Opsional)'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+              </label>
+              {photoPreview && (
+                <div className="relative inline-block shrink-0">
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    className="w-8 h-8 object-cover rounded-lg border border-slate-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoPreview(null);
+                      setFindingPhoto(null);
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px] font-bold shadow"
+                    title="Hapus foto"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

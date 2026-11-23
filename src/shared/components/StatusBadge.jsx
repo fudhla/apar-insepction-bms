@@ -22,19 +22,19 @@ export default function StatusBadge({ type = 'apar', status, className = '' }) {
     switch (status) {
       case 'open':
         badgeStyle = 'bg-rose-50 text-rose-700 border-rose-200';
-        label = 'Open (Menunggu)';
+        label = 'Menunggu Tindakan Admin';
         break;
       case 'in_progress':
         badgeStyle = 'bg-amber-50 text-amber-700 border-amber-200';
-        label = 'In Progress';
+        label = 'Sedang Diproses Admin';
         break;
       case 'pending_review':
         badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200';
-        label = 'Pending Review';
+        label = 'Menunggu Verifikasi Admin';
         break;
       case 'closed':
         badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        label = 'Closed (Selesai)';
+        label = 'Selesai & Disetujui Admin';
         break;
       default:
         badgeStyle = 'bg-slate-100 text-slate-700 border-slate-200';

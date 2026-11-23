@@ -185,13 +185,14 @@ export function fromSupabaseInspection(row, apars = []) {
     overallStatus: row.overall_status || 'layak',
     notes: row.notes || '',
     issueDescription: row.notes || '',
-    findingPhoto: null,
+    findingPhoto: row.inspection_photo || null,
+    inspectionPhoto: row.inspection_photo || null,
     createdAt: row.created_at
   };
 }
 
 export function toSupabaseInspection(insp) {
-  return {
+  const payload = {
     id: insp.id,
     apar_id: insp.aparId || insp.apar_id,
     rig_id: insp.rigId || insp.rig_id,
@@ -204,6 +205,13 @@ export function toSupabaseInspection(insp) {
     notes: insp.notes || insp.issueDescription || null,
     created_at: insp.createdAt || new Date().toISOString()
   };
+
+  const photo = insp.findingPhoto || insp.inspectionPhoto || insp.inspection_photo;
+  if (photo) {
+    payload.inspection_photo = photo;
+  }
+
+  return payload;
 }
 
 // 7. MAINTENANCES MAPPER
@@ -225,6 +233,7 @@ export function fromSupabaseMaintenance(row, apars = []) {
     actionType: row.action_type || 'perbaikan',
     status: row.status || 'open', // 'open' | 'in_progress' | 'pending_review' | 'closed'
     vendorName: row.vendor_name || '',
+    findingPhoto: row.finding_photo || null,
     evidencePhoto: row.evidence_photo || null,
     evidenceUploadedBy: row.evidence_uploaded_by || null,
     repairNotes: row.repair_notes || '',
@@ -236,7 +245,7 @@ export function fromSupabaseMaintenance(row, apars = []) {
 }
 
 export function toSupabaseMaintenance(m) {
-  return {
+  const payload = {
     id: m.id,
     apar_id: m.aparId || m.apar_id,
     rig_id: m.rigId || m.rig_id,
@@ -253,4 +262,11 @@ export function toSupabaseMaintenance(m) {
     created_at: m.createdAt || (m.reportedDate ? `${m.reportedDate}T00:00:00Z` : new Date().toISOString()),
     resolved_at: m.resolvedAt || m.resolved_at || null
   };
+
+  const photo = m.findingPhoto || m.finding_photo;
+  if (photo) {
+    payload.finding_photo = photo;
+  }
+
+  return payload;
 }

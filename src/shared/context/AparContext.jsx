@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { rigsSeed } from '../data/rigsSeed';
 import { aparTypesSeed } from '../data/aparTypesSeed';
 import { aparsSeed } from '../data/aparsSeed';
@@ -221,6 +221,11 @@ export function AparProvider({ children }) {
   // Mendengarkan perubahan apars, inspections, dan maintenances secara live
   // agar setiap tindakan dari proyek Admin langsung otomatis refresh di User
   // =========================================================================
+  const aparTypesRef = useRef(aparTypes);
+  aparTypesRef.current = aparTypes;
+  const aparsRef = useRef(apars);
+  aparsRef.current = apars;
+
   useEffect(() => {
     if (!supabase) {
       setIsCloudOnline(false);
@@ -234,12 +239,12 @@ export function AparProvider({ children }) {
         { event: '*', schema: 'public', table: 'apars' },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseApar(payload.new, aparTypes);
+            const mapped = fromSupabaseApar(payload.new, aparTypesRef.current);
             setApars((prev) =>
               prev.map((a) => (a.id === mapped.id ? { ...a, ...mapped } : a))
             );
           } else if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseApar(payload.new, aparTypes);
+            const mapped = fromSupabaseApar(payload.new, aparTypesRef.current);
             setApars((prev) => [mapped, ...prev.filter((a) => a.id !== mapped.id)]);
           } else if (payload.eventType === 'DELETE') {
             setApars((prev) => prev.filter((a) => a.id !== payload.old.id));
@@ -251,10 +256,10 @@ export function AparProvider({ children }) {
         { event: '*', schema: 'public', table: 'inspections' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseInspection(payload.new, apars);
+            const mapped = fromSupabaseInspection(payload.new, aparsRef.current);
             setInspections((prev) => [mapped, ...prev.filter((i) => i.id !== mapped.id)]);
           } else if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseInspection(payload.new, apars);
+            const mapped = fromSupabaseInspection(payload.new, aparsRef.current);
             setInspections((prev) =>
               prev.map((i) => (i.id === mapped.id ? { ...i, ...mapped } : i))
             );
@@ -268,12 +273,19 @@ export function AparProvider({ children }) {
         { event: '*', schema: 'public', table: 'maintenances' },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseMaintenance(payload.new, apars);
+            const mapped = fromSupabaseMaintenance(payload.new, aparsRef.current);
             setMaintenances((prev) =>
               prev.map((m) => (m.id === mapped.id ? { ...m, ...mapped } : m))
             );
+
+            // Feedback Realtime User Notification
+            if (payload.new.status === 'closed') {
+              showToast('success', `Tiket ${mapped.assetCode} disetujui & diselesaikan Admin`);
+            } else if (payload.new.status === 'in_progress') {
+              showToast('info', `Tiket ${mapped.assetCode} sedang diproses Admin (${payload.new.action_type || 'Perbaikan'})`);
+            }
           } else if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseMaintenance(payload.new, apars);
+            const mapped = fromSupabaseMaintenance(payload.new, aparsRef.current);
             setMaintenances((prev) => [mapped, ...prev.filter((m) => m.id !== mapped.id)]);
           } else if (payload.eventType === 'DELETE') {
             setMaintenances((prev) => prev.filter((m) => m.id !== payload.old.id));
@@ -291,7 +303,7 @@ export function AparProvider({ children }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [aparTypes, apars]);
+  }, []);
 
   // Selector Otomatis Terfilter Rig yang Login
   const userApars = useMemo(() => {
@@ -527,7 +539,12 @@ export function AparProvider({ children }) {
       try {
         // A. Insert ke inspections
         const supInspection = toSupabaseInspection(newInspection);
-        const { error: iErr } = await supabase.from('inspections').insert(supInspection);
+        let { error: iErr } = await supabase.from('inspections').insert(supInspection);
+        if (iErr && iErr.code === 'PGRST204' && iErr.message?.includes('inspection_photo')) {
+          const { inspection_photo, ...safeInsp } = supInspection;
+          const retry = await supabase.from('inspections').insert(safeInsp);
+          iErr = retry.error;
+        }
         if (iErr) console.warn('[Supabase] Inspections insert error:', iErr);
 
         // B. Update status di apars
@@ -540,7 +557,12 @@ export function AparProvider({ children }) {
         // C. Insert ke maintenances jika rusak
         if (hasDamage && newMaintenance) {
           const supMaintenance = toSupabaseMaintenance(newMaintenance);
-          const { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
+          let { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
+          if (mErr && mErr.code === 'PGRST204' && mErr.message?.includes('finding_photo')) {
+            const { finding_photo, ...safeMnt } = supMaintenance;
+            const retry = await supabase.from('maintenances').insert(safeMnt);
+            mErr = retry.error;
+          }
           if (mErr) console.warn('[Supabase] Maintenances insert error:', mErr);
         }
 
