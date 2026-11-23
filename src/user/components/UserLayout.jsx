@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
-import { showConfirm } from '../../shared/utils/swalHelper';
+import { showConfirm, showToast, showError } from '../../shared/utils/swalHelper';
 import {
   Home,
   Layers,
@@ -17,8 +17,24 @@ import {
 } from 'lucide-react';
 
 export default function UserLayout() {
-  const { currentUser, logout, userMaintenances, rigs } = useApar();
+  const { currentUser, logout, userMaintenances, rigs, isCloudOnline, loadDataFromSupabase } = useApar();
   const navigate = useNavigate();
+
+  const handleStatusClick = async () => {
+    if (isCloudOnline) {
+      showToast('success', 'Tersambung ke Supabase Cloud (Realtime Aktif)');
+    } else {
+      const retry = await showConfirm({
+        title: 'Status: Offline / Lokal',
+        text: 'Aplikasi saat ini berjalan dalam mode lokal cadangan. Ingin mencoba menghubungkan ulang ke Supabase?',
+        confirmText: 'Hubungkan Ulang',
+        icon: 'warning'
+      });
+      if (retry) {
+        await loadDataFromSupabase({ silent: false });
+      }
+    }
+  };
 
   const currentRig = rigs.find((r) => r.id === currentUser?.rigId) || {
     id: currentUser?.rigId,
@@ -72,6 +88,30 @@ export default function UserLayout() {
               <p className="text-[10px] font-mono text-slate-400">K3 Lapangan • User Modul</p>
             </div>
           </div>
+
+          {/* Indikator Status Koneksi Supabase Desktop */}
+          <button
+            type="button"
+            onClick={handleStatusClick}
+            className="mt-3 w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700/60 hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Klik untuk cek status koneksi Supabase Cloud"
+          >
+            <span className="text-[10px] font-mono text-slate-400">Database Cloud:</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isCloudOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                }`}
+              />
+              <span
+                className={`text-[10px] font-mono font-bold ${
+                  isCloudOnline ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {isCloudOnline ? 'Live' : 'Offline'}
+              </span>
+            </span>
+          </button>
         </div>
 
         {/* Status Unit Rig Aktif */}
@@ -206,7 +246,24 @@ export default function UserLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Indikator Status Koneksi Mobile */}
+            <button
+              type="button"
+              onClick={handleStatusClick}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[10px] font-mono font-bold hover:bg-slate-700 transition-colors"
+              title="Status Koneksi Supabase Cloud"
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  isCloudOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                }`}
+              />
+              <span className={isCloudOnline ? 'text-emerald-300' : 'text-rose-300'}>
+                {isCloudOnline ? 'Live' : 'Offline'}
+              </span>
+            </button>
+
             <NavLink
               to="/user/profile"
               title="Profil & Ganti Password HFO"

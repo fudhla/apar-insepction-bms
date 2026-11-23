@@ -31,10 +31,10 @@ CREATE TABLE apar_types (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2.3 TABEL HFO_USERS (48 Akun Personel HFO)
+-- 2.3 TABEL HFO_USERS (48 Akun Personel HFO + Akun Admin Pusat)
 CREATE TABLE hfo_users (
   id VARCHAR(50) PRIMARY KEY,
-  rig_id VARCHAR(20) NOT NULL REFERENCES rigs(id) ON DELETE CASCADE,
+  rig_id VARCHAR(20) REFERENCES rigs(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   position VARCHAR(50) DEFAULT 'HFO',
   role VARCHAR(20) DEFAULT 'user',
@@ -138,8 +138,9 @@ INSERT INTO apar_types (id, media, capacity_label, has_pressure_gauge, hydrotest
   ('type_co2', 'Carbon Dioxide Gas (High Pressure)', '5 Kg - 150 Lbs', FALSE, 5),
   ('type_clean_agent', 'Halon Replacement / Clean Agent Gas', '5 Kg', TRUE, 5);
 
--- 3.3 HFO USERS (48 HFO BMS - Password: 123456)
+-- 3.3 HFO USERS (48 HFO BMS & Akun Admin Pusat - Password: 123456 / admin123)
 INSERT INTO hfo_users (id, rig_id, name, position, role, password) VALUES
+  ('admin-01', NULL, 'Admin HSE Pusat', 'HSE Coordinator', 'admin', 'admin123'),
   ('hfo-bms02-1', 'BMS-02', 'ANDI KURNIAWAN S', 'HFO', 'user', '123456'),
   ('hfo-bms02-2', 'BMS-02', 'ROMANIK', 'HFO', 'user', '123456'),
   ('hfo-bms02-3', 'BMS-02', 'M. AKBAR', 'HFO', 'user', '123456'),

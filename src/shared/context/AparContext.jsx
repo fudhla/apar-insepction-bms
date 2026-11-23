@@ -23,17 +23,13 @@ import {
 import { showSuccess, showError, showToast } from '../utils/swalHelper';
 
 const STORAGE_KEYS = {
-  USER: 'bms_apar_v1_user',
-  USERS: 'bms_apar_v1_users',
-  APARS: 'bms_apar_v1_apars',
-  INSPECTIONS: 'bms_apar_v1_inspections',
-  MAINTENANCES: 'bms_apar_v1_maintenances'
+  USER: 'bms_apar_v1_user'
 };
 
 const AparContext = createContext(null);
 
 export function AparProvider({ children }) {
-  // Sesi User Aktif
+  // Sesi User Aktif (Satu-satunya data yang disimpan di localStorage)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.USER);
@@ -49,51 +45,23 @@ export function AparProvider({ children }) {
   // Master Apar Types
   const [aparTypes, setAparTypes] = useState(aparTypesSeed);
 
-  // Data Akun HFO (48 User Seed)
-  const [users, setUsers] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
-      return saved ? JSON.parse(saved) : hfoUsersSeed;
-    } catch {
-      return hfoUsersSeed;
-    }
-  });
+  // Data Akun HFO (In-memory fallback seed, data transaksi murni via Supabase)
+  const [users, setUsers] = useState(hfoUsersSeed);
 
-  // Data APAR
-  const [apars, setApars] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.APARS);
-      return saved ? JSON.parse(saved) : aparsSeed;
-    } catch {
-      return aparsSeed;
-    }
-  });
+  // Data APAR (In-memory fallback seed, data transaksi murni via Supabase)
+  const [apars, setApars] = useState(aparsSeed);
 
-  // Data Inspeksi
-  const [inspections, setInspections] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.INSPECTIONS);
-      return saved ? JSON.parse(saved) : inspectionsSeed;
-    } catch {
-      return inspectionsSeed;
-    }
-  });
+  // Data Inspeksi (In-memory fallback seed, data transaksi murni via Supabase)
+  const [inspections, setInspections] = useState(inspectionsSeed);
 
-  // Data Perbaikan
-  const [maintenances, setMaintenances] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.MAINTENANCES);
-      return saved ? JSON.parse(saved) : maintenancesSeed;
-    } catch {
-      return maintenancesSeed;
-    }
-  });
+  // Data Perbaikan (In-memory fallback seed, data transaksi murni via Supabase)
+  const [maintenances, setMaintenances] = useState(maintenancesSeed);
 
   // Status Sinkronisasi Supabase
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCloudOnline, setIsCloudOnline] = useState(isSupabaseConfigured);
 
-  // Sinkronisasi Sesi & Cache ke localStorage
+  // Sesi Login disimpan ke localStorage
   useEffect(() => {
     try {
       if (currentUser) {
@@ -105,38 +73,6 @@ export function AparProvider({ children }) {
       console.error('Gagal menyimpan currentUser ke localStorage', e);
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-    } catch (e) {
-      console.error('Gagal menyimpan users ke localStorage', e);
-    }
-  }, [users]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.APARS, JSON.stringify(apars));
-    } catch (e) {
-      console.error('Gagal menyimpan apars ke localStorage', e);
-    }
-  }, [apars]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.INSPECTIONS, JSON.stringify(inspections));
-    } catch (e) {
-      console.error('Gagal menyimpan inspections ke localStorage', e);
-    }
-  }, [inspections]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.MAINTENANCES, JSON.stringify(maintenances));
-    } catch (e) {
-      console.error('Gagal menyimpan maintenances ke localStorage', e);
-    }
-  }, [maintenances]);
 
   // =========================================================================
   // SUPABASE: LOAD DATA AWAL DARI 6 TABEL RESMI
@@ -281,35 +217,49 @@ export function AparProvider({ children }) {
   };
 
   // =========================================================================
-  // SUPABASE REALTIME SUBSCRIPTION (APARS & MAINTENANCES)
-  // Agar verifikasi / perubahan dari Proyek Admin langsung realtime muncul di HP User
+  // SUPABASE REALTIME SUBSCRIPTION (channel: apar-sync)
+  // Mendengarkan perubahan apars, inspections, dan maintenances secara live
+  // agar setiap tindakan dari proyek Admin langsung otomatis refresh di User
   // =========================================================================
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setIsCloudOnline(false);
+      return;
+    }
 
     const channel = supabase
-      .channel('hfo_rig_realtime_channel')
+      .channel('apar-sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'apars' },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
+            const mapped = fromSupabaseApar(payload.new, aparTypes);
             setApars((prev) =>
-              prev.map((a) =>
-                a.id === payload.new.id
-                  ? {
-                      ...a,
-                      status: payload.new.status,
-                      lastInspectionStatus: payload.new.status === 'perlu_perbaikan' ? 'tidak_layak' : 'layak'
-                    }
-                  : a
-              )
+              prev.map((a) => (a.id === mapped.id ? { ...a, ...mapped } : a))
             );
           } else if (payload.eventType === 'INSERT') {
-            const newApar = fromSupabaseApar(payload.new, aparTypes);
-            setApars((prev) => [newApar, ...prev]);
+            const mapped = fromSupabaseApar(payload.new, aparTypes);
+            setApars((prev) => [mapped, ...prev.filter((a) => a.id !== mapped.id)]);
           } else if (payload.eventType === 'DELETE') {
             setApars((prev) => prev.filter((a) => a.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inspections' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const mapped = fromSupabaseInspection(payload.new, apars);
+            setInspections((prev) => [mapped, ...prev.filter((i) => i.id !== mapped.id)]);
+          } else if (payload.eventType === 'UPDATE') {
+            const mapped = fromSupabaseInspection(payload.new, apars);
+            setInspections((prev) =>
+              prev.map((i) => (i.id === mapped.id ? { ...i, ...mapped } : i))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setInspections((prev) => prev.filter((i) => i.id !== payload.old.id));
           }
         }
       )
@@ -318,32 +268,25 @@ export function AparProvider({ children }) {
         { event: '*', schema: 'public', table: 'maintenances' },
         (payload) => {
           if (payload.eventType === 'UPDATE') {
+            const mapped = fromSupabaseMaintenance(payload.new, apars);
             setMaintenances((prev) =>
-              prev.map((m) =>
-                m.id === payload.new.id
-                  ? {
-                      ...m,
-                      status: payload.new.status,
-                      adminNotes: payload.new.admin_notes || m.adminNotes,
-                      actionType: payload.new.action_type || m.actionType,
-                      vendorName: payload.new.vendor_name || m.vendorName,
-                      resolvedAt: payload.new.resolved_at || m.resolvedAt,
-                      updatedAt: payload.new.resolved_at
-                        ? payload.new.resolved_at.split('T')[0]
-                        : m.updatedAt
-                    }
-                  : m
-              )
+              prev.map((m) => (m.id === mapped.id ? { ...m, ...mapped } : m))
             );
           } else if (payload.eventType === 'INSERT') {
-            const newMnt = fromSupabaseMaintenance(payload.new, apars);
-            setMaintenances((prev) => [newMnt, ...prev]);
+            const mapped = fromSupabaseMaintenance(payload.new, apars);
+            setMaintenances((prev) => [mapped, ...prev.filter((m) => m.id !== mapped.id)]);
           } else if (payload.eventType === 'DELETE') {
             setMaintenances((prev) => prev.filter((m) => m.id !== payload.old.id));
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsCloudOnline(true);
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setIsCloudOnline(false);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -661,14 +604,14 @@ export function AparProvider({ children }) {
   };
 
   /**
-   * Reset seluruh localStorage ke data seed awal
+   * Reset sesi aktif & bersihkan cache legacy
    */
   const resetDemoData = () => {
     localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.USERS);
-    localStorage.removeItem(STORAGE_KEYS.APARS);
-    localStorage.removeItem(STORAGE_KEYS.INSPECTIONS);
-    localStorage.removeItem(STORAGE_KEYS.MAINTENANCES);
+    localStorage.removeItem('bms_apar_v1_users');
+    localStorage.removeItem('bms_apar_v1_apars');
+    localStorage.removeItem('bms_apar_v1_inspections');
+    localStorage.removeItem('bms_apar_v1_maintenances');
 
     setCurrentUser(null);
     setUsers(hfoUsersSeed);
