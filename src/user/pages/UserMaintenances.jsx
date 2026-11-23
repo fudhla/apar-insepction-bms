@@ -3,6 +3,7 @@ import { useApar } from '../../shared/context/AparContext';
 import StatusBadge from '../../shared/components/StatusBadge';
 import { compressImageFile } from '../../shared/utils/imageUtils';
 import { formatDateDisplay } from '../../shared/utils/hydrotestUtils';
+import { showSuccess, showError } from '../../shared/utils/swalHelper';
 import {
   Wrench,
   Upload,
@@ -60,33 +61,35 @@ export default function UserMaintenances() {
       setPhotoBase64(compressed);
       setPreviewPhoto(compressed);
     } catch (err) {
-      setErrorMsg('Gagal memproses gambar: ' + err.message);
+      showError('Gagal Memproses Gambar', err.message || 'Format gambar tidak didukung.');
     } finally {
       setIsCompressing(false);
     }
   };
 
-  const handleEvidenceSubmit = (e) => {
+  const handleEvidenceSubmit = async (e) => {
     e.preventDefault();
     if (!repairNotes.trim()) {
-      setErrorMsg('Isi catatan perbaikan singkat.');
+      showError('Catatan Tindakan Kosong', 'Harap isi catatan tindakan perbaikan singkat sebelum mengirim.');
       return;
     }
     if (!photoBase64) {
-      setErrorMsg('Foto fisik bukti perbaikan wajib dilampirkan.');
+      showError('Foto Fisik Wajib Diunggah', 'Harap lampirkan foto fisik tabung yang sudah selesai diperbaiki.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       uploadRepairEvidence(selectedTicket.id, photoBase64, repairNotes);
-      setUploadSuccess(true);
-      setTimeout(() => {
-        closeUploadModal();
-        setIsSubmitting(false);
-      }, 1500);
+      const ticketAsset = selectedTicket.assetCode;
+      closeUploadModal();
+      await showSuccess(
+        'Bukti Perbaikan Terkirim!',
+        `Tiket ${ticketAsset} berhasil diperbarui. Status tiket kini menjadi Pending Review dan menunggu verifikasi Admin.`
+      );
     } catch (err) {
-      setErrorMsg('Gagal mengirim bukti: ' + err.message);
+      showError('Gagal Mengirim Bukti', err.message || 'Terjadi kesalahan sistem.');
+    } finally {
       setIsSubmitting(false);
     }
   };

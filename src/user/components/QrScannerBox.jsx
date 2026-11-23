@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useApar } from '../../shared/context/AparContext';
+import { showError } from '../../shared/utils/swalHelper';
 import {
   Camera,
   AlertTriangle,
@@ -117,12 +118,20 @@ export default function QrScannerBox() {
 
     if (matchedOtherRig) {
       setWarningRig(matchedOtherRig);
+      showError(
+        'APAR Milik Rig Lain!',
+        `Tabung ${matchedOtherRig.assetCode} terdaftar milik ${matchedOtherRig.rigId}, sedangkan Anda login di ${currentUser?.rigId}.`
+      );
     } else {
       setWarningRig({
         assetCode: cleanCode,
         rigId: 'Tidak Terdaftar',
         isNotFound: true
       });
+      showError(
+        'Kode Aset Tidak Terdaftar',
+        `Kode "${cleanCode}" tidak ditemukan di database APAR operasional.`
+      );
     }
   };
 

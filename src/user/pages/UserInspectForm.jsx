@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
 import { compressImageFile } from '../../shared/utils/imageUtils';
+import { showSuccess, showError, showConfirm } from '../../shared/utils/swalHelper';
 import {
   ArrowLeft,
   Check,
@@ -96,32 +97,39 @@ export default function UserInspectForm() {
 
     try {
       setIsCompressing(true);
-      setErrorMessage('');
       const base64 = await compressImageFile(file, 800, 800, 0.7);
       setFindingPhoto(base64);
       setPhotoPreview(base64);
     } catch (err) {
-      setErrorMessage('Gagal memproses gambar: ' + err.message);
+      showError('Gagal Memproses Gambar', err.message || 'Format gambar tidak didukung.');
     } finally {
       setIsCompressing(false);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage('');
 
     if (category === 'tahunan' && !thirdPartyVendor.trim()) {
-      setErrorMessage('Isi nama vendor sertifikasi pihak ke-3 (contoh: Sepakat).');
+      showError('Vendor Pihak Ke-3 Wajib Diisi', 'Nama vendor sertifikasi pihak ke-3 wajib diisi untuk inspeksi kategori Tahunan (contoh: Sepakat).');
       return;
     }
 
     if (hasDamage && !issueDescription.trim()) {
-      setErrorMessage(
-        'Tercatat komponen Rusak! Wajib memberikan keterangan di kotak Hal Perbaikan.'
-      );
+      showError('Catatan Kerusakan Wajib Diisi', 'Minimal 1 komponen fisik tercatat Rusak! Harap jelaskan temuan pada kolom Hal Perbaikan sebelum menyimpan.');
       return;
     }
+
+    const confirmed = await showConfirm({
+      title: hasDamage ? 'Konfirmasi Temuan Kerusakan' : 'Konfirmasi Simpan Inspeksi',
+      text: hasDamage
+        ? `Tabung ${apar.assetCode} tercatat ada ${damagedItems.length} komponen rusak. Tiket perbaikan aktif (Work Order) otomatis diterbitkan ke Admin. Lanjutkan?`
+        : `Simpan hasil pemeriksaan tabung ${apar.assetCode} sebagai Kondisi Layak Operasi?`,
+      confirmText: hasDamage ? 'Ya, Terbitkan Tiket' : 'Ya, Simpan Layak',
+      isDanger: hasDamage
+    });
+
+    if (!confirmed) return;
 
     try {
       setIsSubmitting(true);
@@ -134,9 +142,19 @@ export default function UserInspectForm() {
         issueDescription,
         findingPhoto
       });
-      setSuccessInfo(res);
+
+      const hfoName = currentUser?.name || 'Inspektor Lapangan';
+      const statusText = res.overallStatus === 'layak' ? 'LAYAK OPERASI' : 'PERLU PERBAIKAN';
+
+      await showSuccess(
+        res.overallStatus === 'layak' ? 'Inspeksi Berhasil Disimpan!' : 'Tiket Kerusakan Diterbitkan!',
+        `Tabung ${apar.assetCode} dinyatakan ${statusText} oleh HFO ${hfoName}.`
+      );
+
+      navigate(`/user/apars/${apar.id}`);
     } catch (err) {
-      setErrorMessage('Gagal menyimpan inspeksi: ' + err.message);
+      showError('Gagal Menyimpan Inspeksi', err.message || 'Terjadi kesalahan sistem.');
+    } finally {
       setIsSubmitting(false);
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
+import { showSuccess, showError, showConfirm } from '../../shared/utils/swalHelper';
 import {
   User,
   Shield,
@@ -39,47 +40,63 @@ export default function UserProfile() {
     location: 'Area Operasional Lapangan'
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
-    setErrorMsg('');
-    setSuccessMsg('');
 
     if (!oldPassword) {
-      setErrorMsg('Masukkan password lama.');
+      showError('Password Lama Kosong', 'Harap masukkan password lama akun Anda.');
       return;
     }
     if (!newPassword || newPassword.length < 6) {
-      setErrorMsg('Password baru minimal 6 karakter.');
+      showError('Password Terlalu Pendek', 'Password baru minimal harus 6 karakter.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setErrorMsg('Konfirmasi password baru tidak cocok.');
+      showError('Konfirmasi Tidak Cocok', 'Konfirmasi password baru tidak cocok.');
       return;
     }
 
     try {
       changeUserPassword(currentUser.id, oldPassword, newPassword);
-      setSuccessMsg('Password berhasil diperbarui! Silakan gunakan password baru pada login berikutnya.');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      await showSuccess(
+        'Password Diperbarui!',
+        'Gunakan password baru Anda untuk login berikutnya.'
+      );
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal mengubah password.');
+      showError('Gagal Mengubah Password', err.message || 'Password lama tidak cocok.');
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    const confirmed = await showConfirm({
+      title: 'Konfirmasi Keluar',
+      text: `Apakah Anda yakin ingin mengakhiri sesi HFO (${currentUser?.name}) di ${currentUser?.rigId}?`,
+      confirmText: 'Ya, Keluar Akun',
+      isDanger: true,
+      icon: 'question'
+    });
+
+    if (confirmed) {
+      logout();
+      navigate('/login');
+    }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset seluruh data demo ke kondisi awal (termasuk password ke 123456)?')) {
+  const handleResetData = async () => {
+    const confirmed = await showConfirm({
+      title: 'Reset Database Demo?',
+      text: 'Seluruh data APAR, riwayat inspeksi, tiket perbaikan, dan password akan dikembalikan ke setelan awal pabrik.',
+      confirmText: 'Ya, Reset Sekarang',
+      isDanger: true
+    });
+
+    if (confirmed) {
       resetDemoData();
-      setResetDone(true);
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+      await showSuccess('Database Direset', 'Semua data dan akun HFO telah dikembalikan ke kondisi awal.');
+      navigate('/login');
     }
   };
 

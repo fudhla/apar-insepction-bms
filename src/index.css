@@ -56,3 +56,60 @@
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
+/* SweetAlert2 Mobile & HSE styling overrides */
+.swal2-container {
+  z-index: 99999 !important;
+}
+
+.swal2-popup.hse-swal-popup {
+  border-radius: 1rem !important;
+  font-family: inherit !important;
+  padding: 1.25rem !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.2), 0 8px 10px -6px rgba(15, 23, 42, 0.2) !important;
+  border-width: 1px !important;
+}
+
+.hse-swal-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  padding: 0.5rem 0 0 0 !important;
+  margin: 0 !important;
+  line-height: 1.35 !important;
+}
+
+.hse-swal-html {
+  font-size: 0.8125rem !important;
+  line-height: 1.5 !important;
+  margin: 0.5rem 0 0.75rem 0 !important;
+  padding: 0 !important;
+}
+
+.hse-swal-actions {
+  display: flex !important;
+  gap: 0.5rem !important;
+  width: 100% !important;
+  margin: 0.75rem 0 0 0 !important;
+}
+
+.hse-swal-btn {
+  flex: 1 !important;
+  padding: 0.625rem 1rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  border-radius: 0.75rem !important;
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 120ms ease !important;
+}
+
+.hse-swal-toast {
+  font-family: inherit !important;
+  padding: 0.625rem 0.875rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  z-index: 99999 !important;
+}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
+import { showConfirm } from '../../shared/utils/swalHelper';
 import {
   Home,
   Layers,
@@ -29,9 +30,18 @@ export default function UserLayout() {
     (m) => m.status === 'open' || m.status === 'in_progress'
   ).length;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    const confirmed = await showConfirm({
+      title: 'Konfirmasi Keluar',
+      text: `Apakah Anda yakin ingin keluar dari sesi HFO (${currentUser?.name}) di Rig ${currentUser?.rigId}?`,
+      confirmText: 'Ya, Keluar Akun',
+      isDanger: true,
+      icon: 'question'
+    });
+    if (confirmed) {
+      logout();
+      navigate('/login');
+    }
   };
 
   const navItems = [

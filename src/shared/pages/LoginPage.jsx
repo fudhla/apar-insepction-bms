@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApar } from '../context/AparContext';
+import { showSuccess, showError, showConfirm, showToast } from '../utils/swalHelper';
 import {
   Shield,
   ChevronRight,
@@ -51,23 +52,25 @@ export default function LoginPage() {
     setError('');
 
     if (!selectedRigId) {
-      setError('Silakan pilih Rig operasional.');
+      showError('Pilih Rig', 'Silakan pilih Rig operasional terlebih dahulu.');
       return;
     }
     if (!selectedUserId) {
-      setError('Silakan pilih nama HFO.');
+      showError('Pilih Nama HFO', 'Silakan pilih nama personel HFO.');
       return;
     }
     if (!password) {
-      setError('Silakan masukkan password.');
+      showError('Password Kosong', 'Silakan masukkan password akun Anda.');
       return;
     }
 
     try {
-      loginHfo(selectedUserId, password);
+      const session = loginHfo(selectedUserId, password);
+      showToast('success', `Selamat bertugas, ${session.name}!`);
       navigate('/user/dashboard');
     } catch (err) {
       setError(err.message || 'Login gagal.');
+      showError('Login Gagal', err.message || 'Password yang Anda masukkan salah.');
     }
   };
 
@@ -80,20 +83,28 @@ export default function LoginPage() {
       setSelectedUserId(targetUser.id);
       setPassword(targetUser.password || '123456');
       try {
-        loginHfo(targetUser.id, targetUser.password || '123456');
+        const session = loginHfo(targetUser.id, targetUser.password || '123456');
+        showToast('success', `Masuk sebagai ${session.name} (${session.rigId})`);
         navigate('/user/dashboard');
       } catch (err) {
         setError(err.message);
+        showError('Login Gagal', err.message);
       }
     }
   };
 
-  const handleReset = () => {
-    if (window.confirm('Reset database dan seluruh akun HFO kembali ke setelan pabrik?')) {
+  const handleReset = async () => {
+    const confirmed = await showConfirm({
+      title: 'Reset Database Demo?',
+      text: 'Seluruh data APAR, riwayat inspeksi, tiket perbaikan, dan password akun HFO akan dikembalikan ke setelan awal.',
+      confirmText: 'Ya, Reset Sekarang',
+      isDanger: true
+    });
+
+    if (confirmed) {
       resetDemoData();
       setPassword('123456');
-      setResetSuccess(true);
-      setTimeout(() => setResetSuccess(false), 2500);
+      showSuccess('Database Direset', 'Semua data dan akun HFO telah dikembalikan ke kondisi seed awal.');
     }
   };
 
