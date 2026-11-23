@@ -600,12 +600,7 @@ export function AparProvider({ children }) {
 
     // 1. Insert ke Supabase inspections (WAJIB AWAIT & CHECK ERROR)
     const supInspection = toSupabaseInspection(newInspection);
-    let { error: iErr } = await supabase.from('inspections').insert(supInspection);
-    if (iErr && iErr.code === 'PGRST204' && iErr.message?.includes('inspection_photo')) {
-      const { inspection_photo, ...safeInsp } = supInspection;
-      const retry = await supabase.from('inspections').insert(safeInsp);
-      iErr = retry.error;
-    }
+    const { error: iErr } = await supabase.from('inspections').insert(supInspection);
     if (iErr) {
       throw new Error(`Gagal menyimpan data inspeksi ke Supabase: ${iErr.message}`);
     }
@@ -636,7 +631,7 @@ export function AparProvider({ children }) {
         actionType: 'perbaikan',
         status: 'open',
         vendorName: '',
-        findingPhoto,
+        findingPhoto: findingPhoto || null,
         evidencePhoto: null,
         evidenceUploadedBy: null,
         repairNotes: '',
@@ -646,12 +641,7 @@ export function AparProvider({ children }) {
       };
 
       const supMaintenance = toSupabaseMaintenance(newMaintenance);
-      let { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
-      if (mErr && mErr.code === 'PGRST204' && mErr.message?.includes('finding_photo')) {
-        const { finding_photo, ...safeMnt } = supMaintenance;
-        const retry = await supabase.from('maintenances').insert(safeMnt);
-        mErr = retry.error;
-      }
+      const { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
       if (mErr) {
         throw new Error(`Gagal menerbitkan tiket perbaikan ke Supabase: ${mErr.message}`);
       }

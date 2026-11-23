@@ -31,6 +31,7 @@ export default function UserMaintenances() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
 
   const filteredTickets = userMaintenances.filter((item) => {
     if (filterStatus === 'all') return true;
@@ -212,7 +213,8 @@ export default function UserMaintenances() {
                         <img
                           src={ticket.findingPhoto}
                           alt="Foto Kerusakan"
-                          className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
+                          onClick={() => setSelectedPhotoModal({ title: `Foto Kerusakan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
+                          className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
                         />
                       </div>
                     )}
@@ -260,7 +262,8 @@ export default function UserMaintenances() {
                         <img
                           src={ticket.findingPhoto}
                           alt="Foto Kerusakan"
-                          className="w-24 h-24 object-cover rounded-xl border border-amber-200 shadow-sm"
+                          onClick={() => setSelectedPhotoModal({ title: `Foto Kerusakan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
+                          className="w-24 h-24 object-cover rounded-xl border border-amber-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
                         />
                       </div>
                     )}
@@ -269,7 +272,7 @@ export default function UserMaintenances() {
 
                 {/* 3. STATUS: PENDING_REVIEW (Menunggu Verifikasi Admin) */}
                 {isPending && (
-                  <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-xs space-y-2">
+                  <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-xs space-y-2.5">
                     <div className="flex items-center justify-between text-blue-950 font-bold">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-4 h-4 text-blue-600 shrink-0" />
@@ -281,7 +284,8 @@ export default function UserMaintenances() {
                     </div>
 
                     {ticket.repairNotes && (
-                      <p className="text-slate-800 font-medium bg-white/80 p-2 rounded-lg border border-blue-100">
+                      <p className="text-slate-800 font-medium bg-white/80 p-2.5 rounded-lg border border-blue-100 text-[11px] leading-relaxed">
+                        <strong className="text-blue-900 block font-mono text-[10px] uppercase mb-0.5">Catatan Tindakan HFO:</strong>
                         "{ticket.repairNotes}"
                       </p>
                     )}
@@ -292,18 +296,35 @@ export default function UserMaintenances() {
                       </span>
                     )}
 
-                    {ticket.evidencePhoto && (
-                      <div>
-                        <span className="text-[10px] uppercase font-mono text-slate-400 block mb-1">
-                          Foto Bukti Fisik Siap Operasi (After):
-                        </span>
-                        <img
-                          src={ticket.evidencePhoto}
-                          alt="Bukti After"
-                          className="w-24 h-24 object-cover rounded-xl border border-blue-300 shadow-sm"
-                        />
-                      </div>
-                    )}
+                    {/* Foto Komparasi Before & After Saat Menunggu Verifikasi */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {ticket.findingPhoto && (
+                        <div>
+                          <span className="text-[10px] uppercase font-mono text-slate-500 block mb-1 font-semibold">
+                            Foto Sebelum (Before):
+                          </span>
+                          <img
+                            src={ticket.findingPhoto}
+                            alt="Temuan Awal (Before)"
+                            onClick={() => setSelectedPhotoModal({ title: `Foto Temuan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
+                            className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </div>
+                      )}
+                      {ticket.evidencePhoto && (
+                        <div>
+                          <span className="text-[10px] uppercase font-mono text-blue-600 block mb-1 font-bold">
+                            Foto Sesudah (After):
+                          </span>
+                          <img
+                            src={ticket.evidencePhoto}
+                            alt="Bukti Selesai (After)"
+                            onClick={() => setSelectedPhotoModal({ title: `Foto Bukti Perbaikan (After) — ${ticket.assetCode}`, src: ticket.evidencePhoto })}
+                            className="w-full h-24 object-cover rounded-xl border border-blue-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -325,7 +346,8 @@ export default function UserMaintenances() {
                           <img
                             src={ticket.findingPhoto}
                             alt="Before"
-                            className="w-full h-24 object-cover rounded-xl border border-slate-200"
+                            onClick={() => setSelectedPhotoModal({ title: `Foto Sebelum (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
+                            className="w-full h-24 object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
@@ -337,7 +359,8 @@ export default function UserMaintenances() {
                           <img
                             src={ticket.evidencePhoto}
                             alt="After"
-                            className="w-full h-24 object-cover rounded-xl border border-emerald-300"
+                            onClick={() => setSelectedPhotoModal({ title: `Foto Sesudah (After) — ${ticket.assetCode}`, src: ticket.evidencePhoto })}
+                            className="w-full h-24 object-cover rounded-xl border border-emerald-300 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
@@ -503,6 +526,51 @@ export default function UserMaintenances() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal Pratinjau Foto (Before / After) */}
+      {selectedPhotoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setSelectedPhotoModal(null)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 text-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+              <span className="font-mono text-xs font-bold text-slate-200 truncate pr-2">
+                {selectedPhotoModal.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedPhotoModal(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 bg-black/90 flex items-center justify-center max-h-[75vh] overflow-hidden">
+              <img
+                src={selectedPhotoModal.src}
+                alt={selectedPhotoModal.title}
+                className="max-h-[70vh] w-auto object-contain rounded-lg shadow-md"
+              />
+            </div>
+            <div className="p-2.5 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-mono">
+                Ketuk di luar atau tombol tutup untuk kembali
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedPhotoModal(null)}
+                className="text-xs text-slate-300 hover:text-white font-mono py-1 px-3 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
