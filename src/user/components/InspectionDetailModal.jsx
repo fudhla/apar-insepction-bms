@@ -3,15 +3,15 @@ import StatusBadge from '../../shared/components/StatusBadge';
 import { formatDateDisplay } from '../../shared/utils/hydrotestUtils';
 import { X, CheckCircle2, XCircle, MinusCircle, AlertTriangle, Calendar, User, Building } from 'lucide-react';
 
-const COMPONENT_LABELS = {
-  handle: 'Handle / Pegangan',
-  hose: 'Hose / Selang',
-  nozle: 'Nozzle / Corong',
-  pengamanTabung: 'Pengaman Tabung / Belt',
-  pinHandle: 'Pin Handle / Segel',
-  pressureGauge: 'Pressure Gauge / Jarum Tekanan',
-  tabung: 'Bodi Tabung'
-};
+const COMPONENT_ITEMS = [
+  { key: 'handle', altKey: 'handle', label: '1. Handle / Pegangan' },
+  { key: 'hose', altKey: 'hose', label: '2. Hose / Selang' },
+  { key: 'nozzle', altKey: 'nozle', label: '3. Nozzle / Corong' },
+  { key: 'cylinderGuard', altKey: 'pengamanTabung', label: '4. Pengaman Tabung / Belt' },
+  { key: 'pinHandle', altKey: 'pinSegel', label: '5. Pin Handle / Segel' },
+  { key: 'pressureGauge', altKey: 'pressureGauge', label: '6. Pressure Gauge / Jarum Tekanan' },
+  { key: 'cylinder', altKey: 'tabung', label: '7. Bodi Tabung' }
+];
 
 export default function InspectionDetailModal({ inspection, onClose }) {
   if (!inspection) return null;
@@ -81,18 +81,21 @@ export default function InspectionDetailModal({ inspection, onClose }) {
               Pemeriksaan 7 Komponen Fisik
             </h4>
             <div className="space-y-1.5">
-              {Object.entries(COMPONENT_LABELS).map(([key, label]) => {
-                const value = inspection.checklist?.[key] || 'bagus';
+              {COMPONENT_ITEMS.map((item) => {
+                const value =
+                  inspection.checklist?.[item.key] ||
+                  inspection.checklist?.[item.altKey] ||
+                  'bagus';
                 const isGood = value === 'bagus';
                 const isBad = value === 'rusak';
                 const isNA = value === 'na';
 
                 return (
                   <div
-                    key={key}
+                    key={item.key}
                     className="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 text-xs"
                   >
-                    <span className="font-medium text-slate-700">{label}</span>
+                    <span className="font-medium text-slate-700">{item.label}</span>
                     <div>
                       {isGood && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">

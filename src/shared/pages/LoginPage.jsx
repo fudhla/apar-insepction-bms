@@ -13,12 +13,22 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Building2
+  Building2,
+  Database
 } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { rigs, users, rawApars, loginHfo, resetDemoData } = useApar();
+  const {
+    rigs,
+    users,
+    rawApars,
+    loginHfo,
+    resetDemoData,
+    isCloudOnline,
+    isSyncing,
+    seedInitialDataToSupabase
+  } = useApar();
 
   const [selectedRigId, setSelectedRigId] = useState('BMS-07');
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -46,7 +56,7 @@ export default function LoginPage() {
     return rawApars.filter((a) => a.rigId === rigId).length;
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -64,7 +74,7 @@ export default function LoginPage() {
     }
 
     try {
-      const session = loginHfo(selectedUserId, password);
+      const session = await loginHfo(selectedUserId, password);
       showToast('success', `Selamat bertugas, ${session.name}!`);
       navigate('/user/dashboard');
     } catch (err) {
@@ -73,7 +83,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickPreset = (rigId, hfoName) => {
+  const handleQuickPreset = async (rigId, hfoName) => {
     setSelectedRigId(rigId);
     const targetUser = users.find(
       (u) => u.rigId === rigId && u.name.toLowerCase() === hfoName.toLowerCase()
@@ -82,13 +92,25 @@ export default function LoginPage() {
       setSelectedUserId(targetUser.id);
       setPassword(targetUser.password || '123456');
       try {
-        const session = loginHfo(targetUser.id, targetUser.password || '123456');
+        const session = await loginHfo(targetUser.id, targetUser.password || '123456');
         showToast('success', `Masuk sebagai ${session.name} (${session.rigId})`);
         navigate('/user/dashboard');
       } catch (err) {
         setError(err.message);
         showError('Login Gagal', err.message);
       }
+    }
+  };
+
+  const handleSeedCloud = async () => {
+    const confirmed = await showConfirm({
+      title: 'Isi Data Awal ke Supabase?',
+      text: 'Seluruh 16 Rig, 7 Tipe APAR, 48 Akun HFO, 224 Tabung APAR, dan Riwayat akan diunggah ke database Supabase Cloud agar Proyek Admin dan Proyek User tersinkronisasi 100%.',
+      confirmText: 'Ya, Isi Data Sekarang',
+      icon: 'question'
+    });
+    if (confirmed) {
+      await seedInitialDataToSupabase();
     }
   };
 
@@ -128,7 +150,14 @@ export default function LoginPage() {
               <Shield className="w-3.5 h-3.5 text-red-500" />
               <span>HSE Rig Terminal</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">48 HFO AUTH</span>
+            <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isCloudOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
+                }`}
+              />
+              {isCloudOnline ? 'SUPABASE CLOUD' : '48 HFO AUTH'}
+            </span>
           </div>
 
           <h1 className="text-lg font-bold tracking-tight text-white">
@@ -295,14 +324,27 @@ export default function LoginPage() {
 
           {/* Reset Demo Data & Info Footer */}
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 text-slate-500 hover:text-red-600 transition-colors text-[11px]"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Data Demo</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="inline-flex items-center gap-1.5 text-slate-500 hover:text-red-600 transition-colors text-[11px]"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Demo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSeedCloud}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-1 text-slate-500 hover:text-emerald-600 transition-colors text-[11px]"
+                title="Isi 6 tabel Supabase dari data seed lokal"
+              >
+                <Database className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{isSyncing ? 'Mengisi...' : 'Isi Supabase'}</span>
+              </button>
+            </div>
             <span className="font-mono text-[10px]">16 Rig • 48 HFO</span>
           </div>
 
