@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
 import { compressImageFile } from '../../shared/utils/imageUtils';
+import { formatDateDisplay } from '../../shared/utils/hydrotestUtils';
 import { showSuccess, showError, showConfirm } from '../../shared/utils/swalHelper';
 import {
   ArrowLeft,
@@ -14,7 +15,8 @@ import {
   Lock,
   Building,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Wrench
 } from 'lucide-react';
 
 const CHECKLIST_ITEMS = [
@@ -30,11 +32,29 @@ const CHECKLIST_ITEMS = [
 export default function UserInspectForm() {
   const { aparId } = useParams();
   const navigate = useNavigate();
-  const { userApars, aparTypes, submitInspection, currentUser } = useApar();
+  const { userApars, rawApars, aparTypes, submitInspection, currentUser, userInspections, userMaintenances } = useApar();
 
-  const apar = userApars.find((a) => a.id === aparId);
+  const apar = userApars.find((a) => a.id === aparId) || rawApars?.find((a) => a.id === aparId);
   const aparType = aparTypes.find((t) => t.id === apar?.typeId);
   const isCO2 = aparType ? !aparType.hasPressureGauge : false;
+
+  const isDamagedStatus = apar?.status === 'perlu_perbaikan';
+
+  // Cari riwayat inspeksi terakhir untuk tabung ini
+  const latestInspection = useMemo(() => {
+    if (!userInspections || !aparId) return null;
+    return userInspections
+      .filter((i) => i.aparId === aparId)
+      .sort((a, b) => new Date(b.inspectionDate || b.createdAt || 0) - new Date(a.inspectionDate || a.createdAt || 0))[0] || null;
+  }, [userInspections, aparId]);
+
+  // Cari tiket perbaikan aktif untuk tabung ini
+  const activeMaintenance = useMemo(() => {
+    if (!userMaintenances || !aparId) return null;
+    return userMaintenances
+      .filter((m) => m.aparId === aparId && ['open', 'in_progress', 'pending_review'].includes(m.status))
+      .sort((a, b) => new Date(b.createdAt || b.reportedDate || 0) - new Date(a.createdAt || a.reportedDate || 0))[0] || null;
+  }, [userMaintenances, aparId]);
 
   // Form States
   const [inspectionDate, setInspectionDate] = useState(
@@ -43,18 +63,59 @@ export default function UserInspectForm() {
   const [category, setCategory] = useState('bulanan');
   const [thirdPartyVendor, setThirdPartyVendor] = useState('Sepakat');
 
-  // Checklist 7 Komponen (Default: Bagus, kecuali CO2 Pressure Gauge: na)
-  const [checklist, setChecklist] = useState({
-    handle: 'bagus',
-    hose: 'bagus',
-    nozle: 'bagus',
-    pengamanTabung: 'bagus',
-    pinHandle: 'bagus',
-    pressureGauge: isCO2 ? 'na' : 'bagus',
-    tabung: 'bagus'
+  // Checklist 7 Komponen (Pre-fill dari inspeksi terakhir jika status Perlu Perbaikan)
+  const [checklist, setChecklist] = useState(() => {
+    if (isDamagedStatus && latestInspection?.checklist) {
+      const chk = latestInspection.checklist;
+      return {
+        handle: chk.handle || 'bagus',
+        hose: chk.hose || 'bagus',
+        nozle: chk.nozle || chk.nozzle || 'bagus',
+        pengamanTabung: chk.pengamanTabung || chk.cylinderGuard || 'bagus',
+        pinHandle: chk.pinHandle || chk.pinSegel || 'bagus',
+        pressureGauge: isCO2 ? 'na' : (chk.pressureGauge || 'bagus'),
+        tabung: chk.tabung || chk.cylinder || 'bagus'
+      };
+    }
+    return {
+      handle: 'bagus',
+      hose: 'bagus',
+      nozle: 'bagus',
+      pengamanTabung: 'bagus',
+      pinHandle: 'bagus',
+      pressureGauge: isCO2 ? 'na' : 'bagus',
+      tabung: 'bagus'
+    };
   });
 
-  const [issueDescription, setIssueDescription] = useState('');
+  const [issueDescription, setIssueDescription] = useState(() => {
+    if (isDamagedStatus) {
+      return activeMaintenance?.issueDescription || latestInspection?.notes || latestInspection?.issueDescription || '';
+    }
+    return '';
+  });
+
+  // Sinkronisasi otomatis saat latestInspection / activeMaintenance termuat secara asinkron
+  useEffect(() => {
+    if (isDamagedStatus && latestInspection?.checklist) {
+      const chk = latestInspection.checklist;
+      setChecklist({
+        handle: chk.handle || 'bagus',
+        hose: chk.hose || 'bagus',
+        nozle: chk.nozle || chk.nozzle || 'bagus',
+        pengamanTabung: chk.pengamanTabung || chk.cylinderGuard || 'bagus',
+        pinHandle: chk.pinHandle || chk.pinSegel || 'bagus',
+        pressureGauge: isCO2 ? 'na' : (chk.pressureGauge || 'bagus'),
+        tabung: chk.tabung || chk.cylinder || 'bagus'
+      });
+      if (activeMaintenance?.issueDescription) {
+        setIssueDescription(activeMaintenance.issueDescription);
+      } else if (latestInspection?.notes) {
+        setIssueDescription(latestInspection.notes);
+      }
+    }
+  }, [isDamagedStatus, latestInspection?.id, activeMaintenance?.id, isCO2]);
+
   const [findingPhoto, setFindingPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -288,6 +349,35 @@ export default function UserInspectForm() {
           )}
         </div>
       </div>
+
+      {/* Banner Peringatan jika APAR Berstatus Perlu Perbaikan */}
+      {isDamagedStatus && (
+        <div className="bg-rose-50 border border-rose-200/90 rounded-xl p-3 sm:py-2.5 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-150">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 text-rose-600">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              <span className="font-bold text-rose-950 block">
+                Status APAR saat ini: Perlu Perbaikan
+              </span>
+              <p className="text-[11px] text-rose-800 leading-relaxed">
+                Dilaporkan oleh <strong className="font-semibold text-rose-950">{latestInspection?.inspectorName || apar.lastInspectedBy || 'HFO Lapangan'}</strong> pada{' '}
+                <span className="font-mono font-medium">{formatDateDisplay(latestInspection?.inspectionDate || apar.lastInspectionDate)}</span>. Komponen rusak ditandai merah di bawah.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/user/maintenances')}
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 shadow-sm btn-tactile transition-colors"
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Buka Halaman Perbaikan</span>
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {errorMessage && (

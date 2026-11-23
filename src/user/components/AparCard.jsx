@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../../shared/components/StatusBadge';
 import { calculateHydrotest, formatDateDisplay } from '../../shared/utils/hydrotestUtils';
-import { MapPin, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
+import { MapPin, ChevronRight, CheckCircle2, AlertCircle, AlertTriangle, UserCheck } from 'lucide-react';
 
 export default function AparCard({ apar }) {
   const navigate = useNavigate();
@@ -83,9 +83,14 @@ export default function AparCard({ apar }) {
           {hydrotest.shortLabel || hydrotest.label}
         </span>
 
-        {/* Indikator Inspeksi Bulan Ini */}
+        {/* Indikator Inspeksi Bulan Ini / Temuan Kerusakan */}
         <div className="flex items-center gap-1 text-[11px]">
-          {isInspectedThisMonth ? (
+          {isDamaged ? (
+            <span className="inline-flex items-center gap-1 text-rose-700 font-bold text-[11px]">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              Ada Temuan Rusak
+            </span>
+          ) : isInspectedThisMonth ? (
             <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               Sudah Cek
