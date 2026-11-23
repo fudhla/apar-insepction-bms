@@ -77,7 +77,10 @@ export function AparProvider({ children }) {
   // =========================================================================
   // SUPABASE: LOAD DATA AWAL DARI 6 TABEL RESMI
   // =========================================================================
-  const loadDataFromSupabase = async (options = { silent: false }) => {
+  // =========================================================================
+  // SUPABASE: LOAD / FETCH ALL DATA (6 TABEL SECARA PARALEL)
+  // =========================================================================
+  const fetchAllData = async (options = { silent: true }) => {
     if (!supabase) {
       setIsCloudOnline(false);
       return false;
@@ -86,51 +89,44 @@ export function AparProvider({ children }) {
     try {
       setIsSyncing(true);
 
-      // 1. Fetch rigs
-      const { data: rigsData, error: rErr } = await supabase.from('rigs').select('*').order('id');
+      // Ambil 6 tabel serentak secara paralel
+      const [
+        { data: rigsData, error: rErr },
+        { data: typesData, error: tErr },
+        { data: usersData, error: uErr },
+        { data: aparsData, error: aErr },
+        { data: inspData, error: iErr },
+        { data: mntData, error: mErr }
+      ] = await Promise.all([
+        supabase.from('rigs').select('*').order('id'),
+        supabase.from('apar_types').select('*').order('id'),
+        supabase.from('hfo_users').select('*').order('name'),
+        supabase.from('apars').select('*').order('asset_code'),
+        supabase.from('inspections').select('*').order('inspection_date', { ascending: false }),
+        supabase.from('maintenances').select('*').order('created_at', { ascending: false })
+      ]);
+
       if (rErr) throw rErr;
-
-      // Jika tabel rigs kosong di Supabase
-      if (!rigsData || rigsData.length === 0) {
-        console.warn('[Supabase] Tabel rigs masih kosong di Supabase.');
-        setIsCloudOnline(true);
-        return 'EMPTY';
-      }
-
-      // 2. Fetch apar_types
-      const { data: typesData, error: tErr } = await supabase.from('apar_types').select('*').order('id');
       if (tErr) throw tErr;
-
-      // 3. Fetch hfo_users
-      const { data: usersData, error: uErr } = await supabase.from('hfo_users').select('*').order('name');
       if (uErr) throw uErr;
-
-      // 4. Fetch apars
-      const { data: aparsData, error: aErr } = await supabase.from('apars').select('*').order('asset_code');
       if (aErr) throw aErr;
-
-      // 5. Fetch inspections
-      const { data: inspData, error: iErr } = await supabase.from('inspections').select('*').order('inspection_date', { ascending: false });
       if (iErr) throw iErr;
-
-      // 6. Fetch maintenances
-      const { data: mntData, error: mErr } = await supabase.from('maintenances').select('*').order('created_at', { ascending: false });
       if (mErr) throw mErr;
 
       // Map Supabase rows ke Frontend camelCase
-      const mappedRigs = rigsData.map(fromSupabaseRig);
-      const mappedTypes = typesData.map(fromSupabaseAparType);
-      const mappedUsers = usersData.map(fromSupabaseHfoUser);
-      const mappedApars = aparsData.map((row) => fromSupabaseApar(row, mappedTypes));
-      const mappedInspections = inspData.map((row) => fromSupabaseInspection(row, mappedApars));
-      const mappedMaintenances = mntData.map((row) => fromSupabaseMaintenance(row, mappedApars));
+      const mappedRigs = (rigsData || []).map(fromSupabaseRig);
+      const mappedTypes = (typesData || []).map(fromSupabaseAparType);
+      const mappedUsers = (usersData || []).map(fromSupabaseHfoUser);
+      const mappedApars = (aparsData || []).map((row) => fromSupabaseApar(row, mappedTypes));
+      const mappedInspections = (inspData || []).map((row) => fromSupabaseInspection(row, mappedApars));
+      const mappedMaintenances = (mntData || []).map((row) => fromSupabaseMaintenance(row, mappedApars));
 
       if (mappedRigs.length > 0) setRigs(mappedRigs);
       if (mappedTypes.length > 0) setAparTypes(mappedTypes);
       if (mappedUsers.length > 0) setUsers(mappedUsers);
       if (mappedApars.length > 0) setApars(mappedApars);
-      if (mappedInspections.length > 0) setInspections(mappedInspections);
-      if (mappedMaintenances.length > 0) setMaintenances(mappedMaintenances);
+      setInspections(mappedInspections);
+      setMaintenances(mappedMaintenances);
 
       setIsCloudOnline(true);
       if (!options.silent) {
@@ -138,10 +134,10 @@ export function AparProvider({ children }) {
       }
       return true;
     } catch (err) {
-      console.warn('[Supabase] Koneksi offline atau error:', err.message);
+      console.warn('[Supabase] Gagal mengambil data cloud:', err.message);
       setIsCloudOnline(false);
       if (!options.silent) {
-        showError('Gagal Sinkronisasi Cloud', err.message || 'Menggunakan data lokal di HP.');
+        showError('Gagal Sinkronisasi Cloud', err.message);
       }
       return false;
     } finally {
@@ -149,9 +145,11 @@ export function AparProvider({ children }) {
     }
   };
 
+  const loadDataFromSupabase = fetchAllData;
+
   // Muat data dari Supabase saat pertama kali aplikasi dibuka
   useEffect(() => {
-    loadDataFromSupabase({ silent: true });
+    fetchAllData({ silent: true });
   }, []);
 
   // =========================================================================
@@ -205,7 +203,7 @@ export function AparProvider({ children }) {
         'Sinkronisasi Awal Berhasil',
         '16 Rig, 7 Tipe APAR, 48 Akun HFO, 224 Tabung, dan Riwayat berhasil diunggah ke Supabase.'
       );
-      await loadDataFromSupabase({ silent: true });
+      await fetchAllData({ silent: true });
       return true;
     } catch (err) {
       console.error('[Supabase] Gagal seed:', err);
@@ -217,15 +215,10 @@ export function AparProvider({ children }) {
   };
 
   // =========================================================================
-  // SUPABASE REALTIME SUBSCRIPTION (channel: apar-sync)
-  // Mendengarkan perubahan apars, inspections, dan maintenances secara live
-  // agar setiap tindakan dari proyek Admin langsung otomatis refresh di User
+  // SUPABASE REALTIME SUBSCRIPTION (channel: apar-realtime-all-tables)
+  // Mendengarkan perubahan SEMUA 6 TABEL secara live agar setiap tindakan dari
+  // proyek Admin langsung otomatis refresh di User dan sebaliknya
   // =========================================================================
-  const aparTypesRef = useRef(aparTypes);
-  aparTypesRef.current = aparTypes;
-  const aparsRef = useRef(apars);
-  aparsRef.current = apars;
-
   useEffect(() => {
     if (!supabase) {
       setIsCloudOnline(false);
@@ -233,65 +226,30 @@ export function AparProvider({ children }) {
     }
 
     const channel = supabase
-      .channel('apar-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'apars' },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseApar(payload.new, aparTypesRef.current);
-            setApars((prev) =>
-              prev.map((a) => (a.id === mapped.id ? { ...a, ...mapped } : a))
-            );
-          } else if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseApar(payload.new, aparTypesRef.current);
-            setApars((prev) => [mapped, ...prev.filter((a) => a.id !== mapped.id)]);
-          } else if (payload.eventType === 'DELETE') {
-            setApars((prev) => prev.filter((a) => a.id !== payload.old.id));
-          }
+      .channel('apar-realtime-all-tables')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rigs' }, () => {
+        fetchAllData({ silent: true });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apar_types' }, () => {
+        fetchAllData({ silent: true });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hfo_users' }, () => {
+        fetchAllData({ silent: true });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apars' }, () => {
+        fetchAllData({ silent: true });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inspections' }, () => {
+        fetchAllData({ silent: true });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenances' }, (payload) => {
+        fetchAllData({ silent: true });
+        if (payload?.new?.status === 'closed') {
+          showToast('success', 'Tiket perbaikan telah disetujui & diselesaikan Admin');
+        } else if (payload?.new?.status === 'in_progress') {
+          showToast('info', `Tiket perbaikan sedang diproses Admin (${payload?.new?.action_type || 'Perbaikan'})`);
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'inspections' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseInspection(payload.new, aparsRef.current);
-            setInspections((prev) => [mapped, ...prev.filter((i) => i.id !== mapped.id)]);
-          } else if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseInspection(payload.new, aparsRef.current);
-            setInspections((prev) =>
-              prev.map((i) => (i.id === mapped.id ? { ...i, ...mapped } : i))
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setInspections((prev) => prev.filter((i) => i.id !== payload.old.id));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'maintenances' },
-        (payload) => {
-          if (payload.eventType === 'UPDATE') {
-            const mapped = fromSupabaseMaintenance(payload.new, aparsRef.current);
-            setMaintenances((prev) =>
-              prev.map((m) => (m.id === mapped.id ? { ...m, ...mapped } : m))
-            );
-
-            // Feedback Realtime User Notification
-            if (payload.new.status === 'closed') {
-              showToast('success', `Tiket ${mapped.assetCode} disetujui & diselesaikan Admin`);
-            } else if (payload.new.status === 'in_progress') {
-              showToast('info', `Tiket ${mapped.assetCode} sedang diproses Admin (${payload.new.action_type || 'Perbaikan'})`);
-            }
-          } else if (payload.eventType === 'INSERT') {
-            const mapped = fromSupabaseMaintenance(payload.new, aparsRef.current);
-            setMaintenances((prev) => [mapped, ...prev.filter((m) => m.id !== mapped.id)]);
-          } else if (payload.eventType === 'DELETE') {
-            setMaintenances((prev) => prev.filter((m) => m.id !== payload.old.id));
-          }
-        }
-      )
+      })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setIsCloudOnline(true);
@@ -300,8 +258,29 @@ export function AparProvider({ children }) {
         }
       });
 
+    // Fallback Auto-Sync: Saat tab / browser HP kembali aktif
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAllData({ silent: true });
+      }
+    };
+    const handleFocus = () => {
+      fetchAllData({ silent: true });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Polling Interval ringan setiap 15 detik
+    const intervalId = setInterval(() => {
+      fetchAllData({ silent: true });
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -392,43 +371,48 @@ export function AparProvider({ children }) {
   };
 
   /**
-   * Ganti Password HFO & Update ke Supabase hfo_users
+   * Ganti Password HFO & Update Langsung ke Supabase hfo_users
+   * (Wajib AWAIT & Lempar Error agar ditangkap SweetAlert2 di UI)
    */
   const changeUserPassword = async (userId, oldPassword, newPassword) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) {
-      throw new Error('Pengguna tidak ditemukan.');
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
     }
-    if (targetUser.password !== oldPassword) {
+
+    // Ambil data user dari Supabase untuk verifikasi password lama yang akurat
+    const { data: dbUser, error: checkErr } = await supabase
+      .from('hfo_users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (checkErr || !dbUser) {
+      throw new Error('Akun pengguna tidak ditemukan di Supabase.');
+    }
+
+    if (dbUser.password !== oldPassword) {
       throw new Error('Password lama tidak cocok.');
     }
     if (!newPassword || newPassword.length < 6) {
       throw new Error('Password baru minimal 6 karakter.');
     }
 
-    // 1. Update state lokal & cache
+    // Update langsung ke Supabase hfo_users
+    const { error: upErr } = await supabase
+      .from('hfo_users')
+      .update({ password: newPassword })
+      .eq('id', userId);
+
+    if (upErr) {
+      throw new Error(`Gagal memperbarui password di Supabase: ${upErr.message}`);
+    }
+
+    // Update state lokal setelah Supabase 100% SUKSES
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, password: newPassword } : u))
     );
 
-    // 2. Update kolom password di Supabase hfo_users
-    if (supabase) {
-      try {
-        const { error: upErr } = await supabase
-          .from('hfo_users')
-          .update({ password: newPassword })
-          .eq('id', userId);
-
-        if (upErr) {
-          console.error('[Supabase] Gagal update password:', upErr);
-          showToast('warning', 'Password tersimpan lokal di HP (belum terupdate di cloud).');
-        } else {
-          showToast('success', 'Password berhasil diperbarui di Supabase Cloud');
-        }
-      } catch (err) {
-        console.error('[Supabase] Error update password:', err);
-      }
-    }
+    showToast('success', 'Password berhasil diperbarui di Supabase Cloud');
     return true;
   };
 
@@ -437,7 +421,8 @@ export function AparProvider({ children }) {
   };
 
   /**
-   * Submit Inspeksi Cerdas & Simpan ke Supabase (inspections + update apars + insert maintenances)
+   * Submit Inspeksi (Layak / Rusak) 100% Langsung ke Supabase
+   * (Wajib AWAIT seluruh query & Lempar Error jika gagal ke Supabase)
    */
   const submitInspection = async ({
     aparId,
@@ -448,6 +433,10 @@ export function AparProvider({ children }) {
     issueDescription = '',
     findingPhoto = null
   }) => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+
     const targetApar = apars.find((a) => a.id === aparId);
     if (!targetApar) {
       throw new Error(`APAR dengan ID ${aparId} tidak ditemukan.`);
@@ -482,31 +471,36 @@ export function AparProvider({ children }) {
       thirdPartyVendor: category === 'tahunan' ? thirdPartyVendor : '',
       checklist: sanitizedChecklist,
       overallStatus,
-      issueDescription: hasDamage ? issueDescription : '',
-      findingPhoto: hasDamage ? findingPhoto : null,
+      issueDescription: hasDamage ? issueDescription : (issueDescription || ''),
+      notes: hasDamage ? issueDescription : (issueDescription || ''),
+      findingPhoto: findingPhoto || null,
       createdAt: new Date().toISOString()
     };
 
-    // 1. Simpan inspeksi baru lokal
-    setInspections((prev) => [newInspection, ...prev]);
-
-    // 2. Perbarui status APAR lokal
     const newAparStatus = overallStatus === 'tidak_layak' ? 'perlu_perbaikan' : 'layak';
-    setApars((prev) =>
-      prev.map((a) =>
-        a.id === aparId
-          ? {
-              ...a,
-              status: newAparStatus,
-              lastInspectionDate: inspectionDate,
-              lastInspectionStatus: overallStatus,
-              lastInspectedBy: inspectorHfo
-            }
-          : a
-      )
-    );
 
-    // 3. Jika rusak, otomatis buat tiket perbaikan status 'open' lokal
+    // 1. Insert ke Supabase inspections (WAJIB AWAIT & CHECK ERROR)
+    const supInspection = toSupabaseInspection(newInspection);
+    let { error: iErr } = await supabase.from('inspections').insert(supInspection);
+    if (iErr && iErr.code === 'PGRST204' && iErr.message?.includes('inspection_photo')) {
+      const { inspection_photo, ...safeInsp } = supInspection;
+      const retry = await supabase.from('inspections').insert(safeInsp);
+      iErr = retry.error;
+    }
+    if (iErr) {
+      throw new Error(`Gagal menyimpan data inspeksi ke Supabase: ${iErr.message}`);
+    }
+
+    // 2. Update status ke Supabase apars (WAJIB AWAIT & CHECK ERROR)
+    const { error: aErr } = await supabase
+      .from('apars')
+      .update({ status: newAparStatus })
+      .eq('id', aparId);
+    if (aErr) {
+      throw new Error(`Gagal memperbarui status APAR di Supabase: ${aErr.message}`);
+    }
+
+    // 3. Jika rusak, otomatis terbitkan tiket baru ke Supabase maintenances (WAJIB AWAIT & CHECK ERROR)
     let newMaintenance = null;
     if (hasDamage) {
       const newMntId = `mnt-${Date.now()}`;
@@ -531,59 +525,72 @@ export function AparProvider({ children }) {
         createdAt: new Date().toISOString(),
         updatedAt: inspectionDate
       };
+
+      const supMaintenance = toSupabaseMaintenance(newMaintenance);
+      let { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
+      if (mErr && mErr.code === 'PGRST204' && mErr.message?.includes('finding_photo')) {
+        const { finding_photo, ...safeMnt } = supMaintenance;
+        const retry = await supabase.from('maintenances').insert(safeMnt);
+        mErr = retry.error;
+      }
+      if (mErr) {
+        throw new Error(`Gagal menerbitkan tiket perbaikan ke Supabase: ${mErr.message}`);
+      }
+    }
+
+    // 4. Update state lokal setelah Supabase 100% SUKSES
+    setInspections((prev) => [newInspection, ...prev]);
+    setApars((prev) =>
+      prev.map((a) =>
+        a.id === aparId
+          ? {
+              ...a,
+              status: newAparStatus,
+              lastInspectionDate: inspectionDate,
+              lastInspectionStatus: overallStatus,
+              lastInspectedBy: inspectorHfo
+            }
+          : a
+      )
+    );
+    if (newMaintenance) {
       setMaintenances((prev) => [newMaintenance, ...prev]);
     }
 
-    // 4. Sinkronisasi Asinkron ke Supabase Cloud
-    if (supabase) {
-      try {
-        // A. Insert ke inspections
-        const supInspection = toSupabaseInspection(newInspection);
-        let { error: iErr } = await supabase.from('inspections').insert(supInspection);
-        if (iErr && iErr.code === 'PGRST204' && iErr.message?.includes('inspection_photo')) {
-          const { inspection_photo, ...safeInsp } = supInspection;
-          const retry = await supabase.from('inspections').insert(safeInsp);
-          iErr = retry.error;
-        }
-        if (iErr) console.warn('[Supabase] Inspections insert error:', iErr);
-
-        // B. Update status di apars
-        const { error: aErr } = await supabase
-          .from('apars')
-          .update({ status: newAparStatus })
-          .eq('id', aparId);
-        if (aErr) console.warn('[Supabase] Apars status update error:', aErr);
-
-        // C. Insert ke maintenances jika rusak
-        if (hasDamage && newMaintenance) {
-          const supMaintenance = toSupabaseMaintenance(newMaintenance);
-          let { error: mErr } = await supabase.from('maintenances').insert(supMaintenance);
-          if (mErr && mErr.code === 'PGRST204' && mErr.message?.includes('finding_photo')) {
-            const { finding_photo, ...safeMnt } = supMaintenance;
-            const retry = await supabase.from('maintenances').insert(safeMnt);
-            mErr = retry.error;
-          }
-          if (mErr) console.warn('[Supabase] Maintenances insert error:', mErr);
-        }
-
-        showToast('success', 'Inspeksi tersimpan & disinkronkan ke Supabase');
-      } catch (cloudErr) {
-        console.warn('[Supabase] Error sync submit:', cloudErr);
-        showToast('warning', 'Tersimpan di HP (Cloud sedang offline)');
-      }
-    }
+    showToast('success', 'Inspeksi 100% tersimpan ke Supabase Cloud');
+    fetchAllData({ silent: true }).catch(() => {});
 
     return { inspection: newInspection, overallStatus };
   };
 
   /**
-   * Kru / HFO mengunggah bukti perbaikan & sync ke Supabase
+   * Kru / HFO mengunggah bukti perbaikan 100% Langsung ke Supabase
+   * (Wajib AWAIT & Lempar Error agar ditangkap SweetAlert2 di UI)
    */
   const uploadRepairEvidence = async (maintenanceId, photoBase64, repairNotes) => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+
     const uploaderName = currentUser?.name || 'HFO Lapangan';
     const today = new Date().toISOString().split('T')[0];
 
-    // 1. Update lokal
+    // 1. Update ke Supabase maintenances (WAJIB AWAIT & CHECK ERROR)
+    const { error: upErr } = await supabase
+      .from('maintenances')
+      .update({
+        evidence_photo: photoBase64,
+        repair_notes: repairNotes || 'Telah diperbaiki oleh tim HFO lapangan',
+        evidence_uploaded_by: uploaderName,
+        status: 'pending_review'
+      })
+      .eq('id', maintenanceId);
+
+    if (upErr) {
+      throw new Error(`Gagal mengunggah bukti ke Supabase: ${upErr.message}`);
+    }
+
+    // 2. Update state lokal setelah Supabase 100% SUKSES
     setMaintenances((prev) =>
       prev.map((m) => {
         if (m.id === maintenanceId) {
@@ -600,29 +607,8 @@ export function AparProvider({ children }) {
       })
     );
 
-    // 2. Update baris di Supabase maintenances
-    if (supabase) {
-      try {
-        const { error: upErr } = await supabase
-          .from('maintenances')
-          .update({
-            evidence_photo: photoBase64,
-            repair_notes: repairNotes || 'Telah diperbaiki oleh tim HFO lapangan',
-            evidence_uploaded_by: uploaderName,
-            status: 'pending_review'
-          })
-          .eq('id', maintenanceId);
-
-        if (upErr) {
-          console.error('[Supabase] Error update bukti:', upErr);
-          showToast('warning', 'Bukti tersimpan di HP (Gagal sync ke cloud: ' + upErr.message + ')');
-        } else {
-          showToast('success', 'Bukti berhasil diunggah ke Supabase Cloud');
-        }
-      } catch (err) {
-        console.error('[Supabase] Error:', err);
-      }
-    }
+    showToast('success', 'Bukti perbaikan 100% tersimpan ke Supabase Cloud');
+    fetchAllData({ silent: true }).catch(() => {});
   };
 
   /**
@@ -656,7 +642,8 @@ export function AparProvider({ children }) {
     isSyncing,
     isCloudOnline,
     isSupabaseConfigured,
-    loadDataFromSupabase,
+    fetchAllData,
+    loadDataFromSupabase: fetchAllData,
     seedInitialDataToSupabase,
     loginHfo,
     loginAsUser,

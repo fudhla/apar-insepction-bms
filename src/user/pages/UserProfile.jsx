@@ -89,7 +89,7 @@ export default function UserProfile() {
     }
 
     try {
-      changeUserPassword(currentUser.id, oldPassword, newPassword);
+      await changeUserPassword(currentUser.id, oldPassword, newPassword);
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
