@@ -40,6 +40,17 @@ export default function UserInspectForm() {
 
   const isDamagedStatus = apar?.status === 'perlu_perbaikan';
 
+  // Validasi Isolasi Rig: Cegah akses form inspeksi ke APAR milik Rig lain
+  useEffect(() => {
+    if (apar && currentUser?.rigId && apar.rigId !== currentUser.rigId) {
+      showError(
+        'Akses Dibatasi',
+        `APAR ini (${apar.assetCode}) bukan milik Rig Anda (${currentUser.rigId}). Terdaftar pada Rig ${apar.rigId}.`
+      );
+      navigate('/user/apars', { replace: true });
+    }
+  }, [apar, currentUser, navigate]);
+
   // Cari riwayat inspeksi terakhir untuk tabung ini
   const latestInspection = useMemo(() => {
     if (!userInspections || !aparId) return null;
@@ -136,6 +147,11 @@ export default function UserInspectForm() {
         </button>
       </div>
     );
+  }
+
+  // Jika APAR milik Rig lain, jangan render form (akan dialihkan oleh useEffect)
+  if (currentUser?.rigId && apar.rigId !== currentUser.rigId) {
+    return null;
   }
 
   // Hitung jumlah komponen rusak

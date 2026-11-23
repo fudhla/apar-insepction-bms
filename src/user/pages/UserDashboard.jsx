@@ -4,7 +4,7 @@ import { useApar } from '../../shared/context/AparContext';
 import AparCard from '../components/AparCard';
 import { calculateHydrotest } from '../../shared/utils/hydrotestUtils';
 import {
-  QrCode,
+  ClipboardCheck,
   Layers,
   ShieldCheck,
   AlertOctagon,
@@ -210,19 +210,19 @@ export default function UserDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <button
           type="button"
-          onClick={() => navigate('/user/scan')}
+          onClick={() => navigate('/user/quick-inspect')}
           className="p-4 bg-[#0F172A] hover:bg-slate-900 active:bg-black text-white rounded-xl border border-slate-800 shadow-md flex items-center justify-between group transition-all btn-tactile text-left"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-lg bg-red-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-              <QrCode className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <ClipboardCheck className="w-5 h-5 group-hover:scale-110 transition-transform" />
             </div>
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-red-400 font-bold block">
                 AKSI UTAMA
               </span>
-              <span className="font-bold text-sm text-white block">Scan Barcode / QR Tabung</span>
-              <span className="text-[11px] text-slate-400">Kamera deteksi seketika</span>
+              <span className="font-bold text-sm text-white block">Pilih Cepat & Inspeksi</span>
+              <span className="text-[11px] text-slate-400">Prioritas unit belum dicek & rusak</span>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-1 transition-all" />

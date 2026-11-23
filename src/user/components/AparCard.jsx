@@ -2,9 +2,20 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../../shared/components/StatusBadge';
 import { calculateHydrotest, formatDateDisplay } from '../../shared/utils/hydrotestUtils';
-import { MapPin, ChevronRight, CheckCircle2, AlertCircle, AlertTriangle, UserCheck } from 'lucide-react';
+import {
+  MapPin,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  UserCheck,
+  ClipboardCheck,
+  Eye,
+  Edit3,
+  Trash2
+} from 'lucide-react';
 
-export default function AparCard({ apar }) {
+export default function AparCard({ apar, onEdit, onDelete }) {
   const navigate = useNavigate();
 
   const hydrotest = calculateHydrotest(apar.manufactureDate);
@@ -103,6 +114,61 @@ export default function AparCard({ apar }) {
           )}
           <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 transition-colors ml-0.5" />
         </div>
+      </div>
+
+      {/* Baris Aksi Cepat: Inspeksi, Detail, Edit, Hapus */}
+      <div className="pl-2 pt-2.5 mt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/user/inspect/${apar.id}`);
+          }}
+          className="flex-1 py-1.5 px-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors shadow-xs btn-tactile"
+        >
+          <ClipboardCheck className="w-3.5 h-3.5" />
+          <span>Inspeksi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/user/apars/${apar.id}`);
+          }}
+          className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] flex items-center justify-center gap-1 transition-colors"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>Detail</span>
+        </button>
+
+        {onEdit && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(apar);
+            }}
+            title="Edit Detail APAR"
+            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center justify-center"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(apar);
+            }}
+            title="Hapus Unit APAR"
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors flex items-center justify-center"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

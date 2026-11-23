@@ -125,11 +125,18 @@ export function fromSupabaseApar(row, aparTypes = []) {
     ? matchedType.hasPressureGauge
     : !/co2/i.test(row.apar_type_id || '');
 
+  const typeName =
+    matchedType?.description ||
+    (matchedType ? `${matchedType.media} ${matchedType.capacityLabel || matchedType.capacity_label || ''}`.trim() : null) ||
+    row.apar_type_id ||
+    'APAR Unit';
+
   return {
     id: row.id,
     assetCode: row.asset_code,
     rigId: row.rig_id,
     typeId: row.apar_type_id,
+    typeName,
     brand: row.brand_model || '-',
     brandModel: row.brand_model || '-',
     serialNo: row.serial_no || '-',
@@ -142,7 +149,7 @@ export function fromSupabaseApar(row, aparTypes = []) {
     status: row.status || 'layak', // 'layak' | 'perlu_perbaikan' | 'afkir'
     hasPressureGauge,
     createdAt: row.created_at,
-    lastInspectionDate: null,
+    lastInspectionDate: row.last_inspection_date || null,
     lastInspectionStatus: row.status === 'perlu_perbaikan' ? 'tidak_layak' : 'layak',
     lastInspectedBy: null
   };

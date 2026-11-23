@@ -7,7 +7,7 @@ import UserLayout from './user/components/UserLayout';
 import UserDashboard from './user/pages/UserDashboard';
 import UserAparList from './user/pages/UserAparList';
 import UserAparDetail from './user/pages/UserAparDetail';
-import UserScanPage from './user/pages/UserScanPage';
+import UserQuickInspectPage from './user/pages/UserQuickInspectPage';
 import UserInspectForm from './user/pages/UserInspectForm';
 import UserMaintenances from './user/pages/UserMaintenances';
 import UserHistory from './user/pages/UserHistory';
@@ -34,7 +34,8 @@ export default function App() {
             <Route path="dashboard" element={<UserDashboard />} />
             <Route path="apars" element={<UserAparList />} />
             <Route path="apars/:id" element={<UserAparDetail />} />
-            <Route path="scan" element={<UserScanPage />} />
+            <Route path="quick-inspect" element={<UserQuickInspectPage />} />
+            <Route path="scan" element={<Navigate to="/user/quick-inspect" replace />} />
             <Route path="inspect/:aparId" element={<UserInspectForm />} />
             <Route path="maintenances" element={<UserMaintenances />} />
             <Route path="history" element={<UserHistory />} />

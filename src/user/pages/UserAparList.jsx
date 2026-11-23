@@ -1,16 +1,47 @@
 import React, { useState, useMemo } from 'react';
 import { useApar } from '../../shared/context/AparContext';
 import AparCard from '../components/AparCard';
+import AparFormModal from '../components/AparFormModal';
+import { showConfirm, showSuccess, showError } from '../../shared/utils/swalHelper';
 import { Search, Filter, Layers, X, PlusCircle } from 'lucide-react';
 
 export default function UserAparList() {
-  const { userApars, aparTypes, currentUser } = useApar();
+  const { userApars, aparTypes, currentUser, deleteApar, userInspections } = useApar();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all' | 'layak' | 'perlu_perbaikan' | 'belum_dicek'
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingApar, setEditingApar] = useState(null);
+
   const currentMonth = new Date().toISOString().slice(0, 7);
+
+  const handleDeleteApar = async (apar) => {
+    const hasHistory = userInspections.some((i) => i.aparId === apar.id);
+    let warningText = `Apakah Anda yakin ingin menghapus unit APAR ${apar.assetCode}? Tindakan ini akan menghapus data tabung dari Supabase Cloud.`;
+    if (hasHistory) {
+      warningText = `PERINGATAN AUDIT K3: Unit APAR ${apar.assetCode} sudah memiliki riwayat log inspeksi fisik. Menghapus tabung ini akan menghapus seluruh data inspeksi dan tiket perbaikan terkait. Jika tabung sudah rusak permanen, Anda dapat mengubah statusnya menjadi "Afkir" melalui menu Edit. Tetap ingin menghapus permanen?`;
+    }
+
+    const confirmed = await showConfirm({
+      title: `Hapus Unit ${apar.assetCode}?`,
+      text: warningText,
+      confirmText: 'Ya, Hapus Permanen',
+      cancelText: 'Batal',
+      isDanger: true,
+      icon: 'warning'
+    });
+
+    if (confirmed) {
+      try {
+        await deleteApar(apar.id);
+        showSuccess('APAR Dihapus', `Unit ${apar.assetCode} berhasil dihapus dari sistem.`);
+      } catch (err) {
+        showError('Gagal Menghapus', err.message || 'Terjadi kesalahan sistem.');
+      }
+    }
+  };
 
   // Filter & Search Logic
   const filteredApars = useMemo(() => {
@@ -53,7 +84,7 @@ export default function UserAparList() {
   return (
     <div className="space-y-5">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
             Daftar APAR {currentUser?.rigId}
@@ -62,6 +93,17 @@ export default function UserAparList() {
             Total {userApars.length} tabung terdaftar di area operasional Rig ini.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setEditingApar(null);
+            setIsModalOpen(true);
+          }}
+          className="px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all btn-tactile shrink-0"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>+ Tambah APAR</span>
+        </button>
       </div>
 
       {/* Kontrol Pencarian & Filter */}
@@ -162,10 +204,28 @@ export default function UserAparList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {filteredApars.map((apar) => (
-            <AparCard key={apar.id} apar={apar} />
+            <AparCard
+              key={apar.id}
+              apar={apar}
+              onEdit={(target) => {
+                setEditingApar(target);
+                setIsModalOpen(true);
+              }}
+              onDelete={(target) => handleDeleteApar(target)}
+            />
           ))}
         </div>
       )}
+
+      {/* Modal CRUD Tambah & Edit APAR */}
+      <AparFormModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingApar(null);
+        }}
+        editData={editingApar}
+      />
     </div>
   );
 }

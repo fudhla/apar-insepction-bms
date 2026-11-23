@@ -5,7 +5,7 @@ import { showConfirm, showToast, showError } from '../../shared/utils/swalHelper
 import {
   Home,
   Layers,
-  QrCode,
+  ClipboardCheck,
   Wrench,
   History,
   LogOut,
@@ -63,7 +63,7 @@ export default function UserLayout() {
   const navItems = [
     { to: '/user/dashboard', label: 'Dashboard', icon: Home },
     { to: '/user/apars', label: 'Unit APAR', icon: Layers },
-    { to: '/user/scan', label: 'Scan QR', icon: QrCode, isScan: true },
+    { to: '/user/quick-inspect', label: 'Inspeksi', icon: ClipboardCheck, isScan: true },
     {
       to: '/user/maintenances',
       label: 'Perbaikan',
@@ -159,7 +159,7 @@ export default function UserLayout() {
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4" />
-                    <span>Scan Barcode / QR</span>
+                    <span>Pilih & Inspeksi</span>
                   </div>
                   <ChevronRight className="w-3.5 h-3.5 opacity-60" />
                 </NavLink>
@@ -325,7 +325,7 @@ export default function UserLayout() {
                         isActive ? 'text-red-400' : 'text-slate-400'
                       }`}
                     >
-                      SCAN QR
+                      INSPEKSI
                     </span>
                   </>
                 )}

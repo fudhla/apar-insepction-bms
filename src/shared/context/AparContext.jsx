@@ -21,6 +21,7 @@ import {
   toSupabaseMaintenance
 } from '../lib/supabaseMappers';
 import { showSuccess, showError, showToast } from '../utils/swalHelper';
+import { calculateHydrotest } from '../utils/hydrotestUtils';
 
 const STORAGE_KEYS = {
   USER: 'bms_apar_v1_user'
@@ -121,10 +122,21 @@ export function AparProvider({ children }) {
       const mappedInspections = (inspData || []).map((row) => fromSupabaseInspection(row, mappedApars));
       const mappedMaintenances = (mntData || []).map((row) => fromSupabaseMaintenance(row, mappedApars));
 
+      // Selaraskan info inspeksi fisik terakhir ke setiap unit APAR
+      const aparsWithInspection = mappedApars.map((apar) => {
+        const latest = mappedInspections.find((i) => i.aparId === apar.id);
+        return {
+          ...apar,
+          lastInspectionDate: latest ? latest.inspectionDate : apar.lastInspectionDate,
+          lastInspectionStatus: latest ? latest.overallStatus : apar.lastInspectionStatus,
+          lastInspectedBy: latest ? latest.inspectorName : apar.lastInspectedBy
+        };
+      });
+
       if (mappedRigs.length > 0) setRigs(mappedRigs);
       if (mappedTypes.length > 0) setAparTypes(mappedTypes);
       if (mappedUsers.length > 0) setUsers(mappedUsers);
-      if (mappedApars.length > 0) setApars(mappedApars);
+      if (aparsWithInspection.length > 0) setApars(aparsWithInspection);
       setInspections(mappedInspections);
       setMaintenances(mappedMaintenances);
 
@@ -216,9 +228,82 @@ export function AparProvider({ children }) {
 
   // =========================================================================
   // SUPABASE REALTIME SUBSCRIPTION (channel: apar-realtime-all-tables)
-  // Mendengarkan perubahan SEMUA 6 TABEL secara live agar setiap tindakan dari
-  // proyek Admin langsung otomatis refresh di User dan sebaliknya
+  // Mendengarkan perubahan SEMUA 6 TABEL secara live dengan FILTER KETAT ISOLASI RIG:
+  // User (HFO) HANYA menerima notifikasi dan trigger sinkronisasi untuk Rig tempatnya login (currentUser.rigId)
   // =========================================================================
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  const aparsRef = useRef(apars);
+  useEffect(() => {
+    aparsRef.current = apars;
+  }, [apars]);
+
+  const inspectionsRef = useRef(inspections);
+  useEffect(() => {
+    inspectionsRef.current = inspections;
+  }, [inspections]);
+
+  const maintenancesRef = useRef(maintenances);
+  useEffect(() => {
+    maintenancesRef.current = maintenances;
+  }, [maintenances]);
+
+  /**
+   * Filter ketat isolasi Rig:
+   * Mengembalikan true HANYA jika payload perubahan ditujukan untuk rig yang sedang login.
+   * Mengembalikan false jika perubahan berasal dari Rig lain (diabaikan sepenuhnya).
+   */
+  const isRigEventForCurrentUser = (table, payload) => {
+    const user = currentUserRef.current;
+    if (!user) return false;
+
+    // Jika bukan role user (misal admin), terima seluruh data
+    if (user.role !== 'user') return true;
+
+    const record =
+      payload?.new && Object.keys(payload.new).length > 0
+        ? payload.new
+        : payload?.old && Object.keys(payload.old).length > 0
+        ? payload.old
+        : null;
+
+    if (!record) return false;
+
+    // 1. Dapatkan rig_id langsung dari record
+    let recordRigId = record.rig_id || record.rigId;
+
+    // 2. Jika tidak ada di record, cari lewat relasi apar_id
+    if (!recordRigId && record.apar_id) {
+      const matchApar = aparsRef.current.find(
+        (a) => a.id === record.apar_id || a.assetCode === record.apar_id
+      );
+      if (matchApar) {
+        recordRigId = matchApar.rigId;
+      }
+    }
+
+    // 3. Fallback pada event DELETE jika payload hanya berisi { id }
+    if (!recordRigId && record.id) {
+      if (table === 'apars') {
+        recordRigId = aparsRef.current.find((a) => a.id === record.id)?.rigId;
+      } else if (table === 'inspections') {
+        recordRigId = inspectionsRef.current.find((i) => i.id === record.id)?.rigId;
+      } else if (table === 'maintenances') {
+        recordRigId = maintenancesRef.current.find((m) => m.id === record.id)?.rigId;
+      }
+    }
+
+    // Jika rig_id tidak sama dengan rig user aktif: abaikan sepenuhnya!
+    if (!recordRigId || recordRigId !== user.rigId) {
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     if (!supabase) {
       setIsCloudOnline(false);
@@ -233,17 +318,46 @@ export function AparProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'apar_types' }, () => {
         fetchAllData({ silent: true });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hfo_users' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hfo_users' }, (payload) => {
+        const user = currentUserRef.current;
+        if (user?.role === 'user') {
+          const record = payload.new || payload.old;
+          const userRigId = record?.rig_id || record?.rigId;
+          const isSelf = record?.id === user.id;
+          // Abaikan perubahan user dari Rig lain
+          if (!isSelf && userRigId !== user.rigId) {
+            return;
+          }
+        }
         fetchAllData({ silent: true });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'apars' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apars' }, (payload) => {
+        // Filter ketat: Hanya refresh jika APAR milik Rig yang sedang login
+        if (!isRigEventForCurrentUser('apars', payload)) return;
         fetchAllData({ silent: true });
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inspections' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inspections' }, (payload) => {
+        // Filter ketat: Hanya proses jika inspeksi milik Rig yang sedang login
+        if (!isRigEventForCurrentUser('inspections', payload)) return;
         fetchAllData({ silent: true });
+
+        // Tampilkan notifikasi hanya untuk aktivitas di Rig sendiri (dari rekan HFO)
+        const user = currentUserRef.current;
+        const record = payload?.new;
+        if (
+          payload?.eventType === 'INSERT' &&
+          record?.inspector_name &&
+          record.inspector_name !== user?.name
+        ) {
+          showToast('info', `Rekan HFO (${record.inspector_name}) baru saja menginspeksi APAR di Rig ${user?.rigId}`);
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenances' }, (payload) => {
+        // Filter ketat: Hanya proses jika tiket perbaikan milik Rig yang sedang login
+        if (!isRigEventForCurrentUser('maintenances', payload)) return;
         fetchAllData({ silent: true });
+
+        // Tampilkan notifikasi hanya untuk tiket di Rig sendiri
         if (payload?.new?.status === 'closed') {
           showToast('success', 'Tiket perbaikan telah disetujui & diselesaikan Admin');
         } else if (payload?.new?.status === 'in_progress') {
@@ -442,6 +556,11 @@ export function AparProvider({ children }) {
       throw new Error(`APAR dengan ID ${aparId} tidak ditemukan.`);
     }
 
+    // Isolasi Rig: Cegah inspeksi ke APAR Rig lain
+    if (currentUser?.role === 'user' && currentUser?.rigId && targetApar.rigId !== currentUser.rigId) {
+      throw new Error(`Akses ditolak: Anda tidak memiliki izin menginspeksi APAR di Rig ${targetApar.rigId}.`);
+    }
+
     const aparType = aparTypes.find((t) => t.id === targetApar.typeId);
     const sanitizedChecklist = { ...checklist };
 
@@ -572,6 +691,12 @@ export function AparProvider({ children }) {
       throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
     }
 
+    // Isolasi Rig: Cegah upload bukti perbaikan untuk tiket Rig lain
+    const targetMnt = maintenances.find((m) => m.id === maintenanceId);
+    if (currentUser?.role === 'user' && currentUser?.rigId && targetMnt && targetMnt.rigId !== currentUser.rigId) {
+      throw new Error(`Akses ditolak: Tiket perbaikan ini bukan milik Rig ${currentUser.rigId}.`);
+    }
+
     const uploaderName = currentUser?.name || 'HFO Lapangan';
     const today = new Date().toISOString().split('T')[0];
 
@@ -609,6 +734,203 @@ export function AparProvider({ children }) {
 
     showToast('success', 'Bukti perbaikan 100% tersimpan ke Supabase Cloud');
     fetchAllData({ silent: true }).catch(() => {});
+  };
+
+  /**
+   * CREATE APAR (Khusus Rig aktif)
+   * Menyimpan langsung ke tabel apars di Supabase dan menyelaraskan ke state lokal
+   */
+  const createApar = async (newAparData) => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+    if (!currentUser?.rigId) {
+      throw new Error('Sesi login tidak valid. Silakan login ulang.');
+    }
+
+    const assetCode = (newAparData.assetCode || '').trim().toUpperCase();
+    if (!assetCode) {
+      throw new Error('Kode Aset APAR wajib diisi.');
+    }
+    if (!newAparData.typeId) {
+      throw new Error('Tipe Media APAR wajib dipilih dari master.');
+    }
+    if (!newAparData.placement?.trim()) {
+      throw new Error('Lokasi penempatan APAR wajib diisi.');
+    }
+
+    // Cek duplikasi kode aset
+    const isDuplicate = apars.some((a) => a.assetCode.toLowerCase() === assetCode.toLowerCase());
+    if (isDuplicate) {
+      throw new Error(`Kode Aset "${assetCode}" sudah digunakan di sistem.`);
+    }
+
+    // Hitung tanggal next_hydrotest_date (+5 tahun jika manufactureDate diisi)
+    let nextHydrotestDate = null;
+    if (newAparData.manufactureDate) {
+      const hydro = calculateHydrotest(newAparData.manufactureDate);
+      if (hydro.isValid && hydro.hydrotestDateStr !== '-') {
+        nextHydrotestDate = hydro.hydrotestDateStr;
+      }
+    }
+
+    const aparId = `apar-${currentUser.rigId.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now().toString().slice(-6)}`;
+
+    const row = {
+      id: aparId,
+      asset_code: assetCode,
+      rig_id: currentUser.rigId,
+      apar_type_id: newAparData.typeId,
+      brand_model: newAparData.brandModel?.trim() || 'BMS Standard',
+      serial_no: newAparData.serialNo?.trim() || 'TIDAK TERBACA',
+      placement: newAparData.placement.trim(),
+      charge_owner: newAparData.chargeOwner === 'APM' ? 'APM' : 'BMS',
+      manufacture_date: newAparData.manufactureDate || null,
+      last_hydrotest_date: newAparData.lastHydrotestDate || null,
+      next_hydrotest_date: nextHydrotestDate,
+      status: 'layak',
+      created_at: new Date().toISOString()
+    };
+
+    const { error: insErr } = await supabase.from('apars').insert(row);
+    if (insErr) {
+      throw new Error(`Gagal menyimpan APAR ke Supabase: ${insErr.message}`);
+    }
+
+    const mapped = fromSupabaseApar(row, aparTypes);
+    setApars((prev) => [mapped, ...prev]);
+
+    showToast('success', `APAR ${assetCode} berhasil ditambahkan ke Rig ${currentUser.rigId}`);
+    fetchAllData({ silent: true }).catch(() => {});
+    return mapped;
+  };
+
+  /**
+   * UPDATE APAR (Khusus Rig aktif)
+   * Memperbarui detail APAR di Supabase & menghitung ulang hydrotest (+5 tahun)
+   */
+  const updateApar = async (aparId, updateData) => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+    const targetApar = apars.find((a) => a.id === aparId);
+    if (!targetApar) {
+      throw new Error('Unit APAR tidak ditemukan.');
+    }
+    if (currentUser?.role === 'user' && targetApar.rigId !== currentUser.rigId) {
+      throw new Error(`Akses ditolak: APAR ini bukan milik Rig Anda (${currentUser.rigId}).`);
+    }
+
+    const assetCode = (updateData.assetCode || targetApar.assetCode).trim().toUpperCase();
+    if (!assetCode) {
+      throw new Error('Kode Aset APAR tidak boleh kosong.');
+    }
+
+    // Cek duplikasi jika assetCode diubah
+    if (assetCode.toLowerCase() !== targetApar.assetCode.toLowerCase()) {
+      const isDuplicate = apars.some(
+        (a) => a.id !== aparId && a.assetCode.toLowerCase() === assetCode.toLowerCase()
+      );
+      if (isDuplicate) {
+        throw new Error(`Kode Aset "${assetCode}" sudah digunakan tabung lain.`);
+      }
+    }
+
+    // Hitung ulang next_hydrotest_date jika manufactureDate diperbarui
+    let nextHydrotestDate = targetApar.nextHydrotestDate;
+    if (updateData.manufactureDate !== undefined) {
+      if (updateData.manufactureDate) {
+        const hydro = calculateHydrotest(updateData.manufactureDate);
+        nextHydrotestDate = hydro.isValid && hydro.hydrotestDateStr !== '-' ? hydro.hydrotestDateStr : null;
+      } else {
+        nextHydrotestDate = null;
+      }
+    }
+
+    const updateRow = {
+      asset_code: assetCode,
+      apar_type_id: updateData.typeId || targetApar.typeId,
+      brand_model: updateData.brandModel !== undefined ? updateData.brandModel.trim() : targetApar.brandModel,
+      serial_no: updateData.serialNo !== undefined ? updateData.serialNo.trim() : targetApar.serialNo,
+      placement: updateData.placement !== undefined ? updateData.placement.trim() : targetApar.placement,
+      charge_owner: updateData.chargeOwner || targetApar.chargeOwner,
+      manufacture_date: updateData.manufactureDate !== undefined ? updateData.manufactureDate : targetApar.manufactureDate,
+      next_hydrotest_date: nextHydrotestDate,
+      status: updateData.status || targetApar.status
+    };
+
+    const { error: upErr } = await supabase.from('apars').update(updateRow).eq('id', aparId);
+    if (upErr) {
+      throw new Error(`Gagal memperbarui APAR di Supabase: ${upErr.message}`);
+    }
+
+    // Update state lokal
+    setApars((prev) =>
+      prev.map((a) => {
+        if (a.id === aparId) {
+          const matchedType = aparTypes.find((t) => t.id === updateRow.apar_type_id);
+          const typeName =
+            matchedType?.description ||
+            (matchedType ? `${matchedType.media} ${matchedType.capacityLabel || ''}`.trim() : a.typeName);
+          return {
+            ...a,
+            assetCode: updateRow.asset_code,
+            typeId: updateRow.apar_type_id,
+            typeName,
+            brandModel: updateRow.brand_model,
+            brand: updateRow.brand_model,
+            serialNo: updateRow.serial_no,
+            placement: updateRow.placement,
+            location: updateRow.placement,
+            chargeOwner: updateRow.charge_owner,
+            manufactureDate: updateRow.manufacture_date,
+            nextHydrotestDate: updateRow.next_hydrotest_date,
+            status: updateRow.status
+          };
+        }
+        return a;
+      })
+    );
+
+    showToast('success', `Data APAR ${assetCode} berhasil diperbarui di Supabase`);
+    fetchAllData({ silent: true }).catch(() => {});
+    return true;
+  };
+
+  /**
+   * DELETE APAR (Khusus Rig aktif)
+   * Menghapus unit APAR beserta riwayat transaksi terkait dari Supabase
+   */
+  const deleteApar = async (aparId) => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+    const targetApar = apars.find((a) => a.id === aparId);
+    if (!targetApar) {
+      throw new Error('Unit APAR tidak ditemukan.');
+    }
+    if (currentUser?.role === 'user' && targetApar.rigId !== currentUser.rigId) {
+      throw new Error(`Akses ditolak: APAR ini bukan milik Rig Anda (${currentUser.rigId}).`);
+    }
+
+    // 1. Bersihkan transaksi terkait terlebih dahulu
+    await supabase.from('maintenances').delete().eq('apar_id', aparId);
+    await supabase.from('inspections').delete().eq('apar_id', aparId);
+
+    // 2. Hapus baris APAR dari Supabase
+    const { error: delErr } = await supabase.from('apars').delete().eq('id', aparId);
+    if (delErr) {
+      throw new Error(`Gagal menghapus APAR dari Supabase: ${delErr.message}`);
+    }
+
+    // 3. Sinkronkan state lokal
+    setApars((prev) => prev.filter((a) => a.id !== aparId));
+    setInspections((prev) => prev.filter((i) => i.aparId !== aparId));
+    setMaintenances((prev) => prev.filter((m) => m.aparId !== aparId));
+
+    showToast('success', `APAR ${targetApar.assetCode} berhasil dihapus`);
+    fetchAllData({ silent: true }).catch(() => {});
+    return true;
   };
 
   /**
@@ -651,6 +973,9 @@ export function AparProvider({ children }) {
     logout,
     submitInspection,
     uploadRepairEvidence,
+    createApar,
+    updateApar,
+    deleteApar,
     resetDemoData
   };
 

@@ -1,30 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { useApar } from '../../shared/context/AparContext';
 import StatusBadge from '../../shared/components/StatusBadge';
 import InspectionDetailModal from '../components/InspectionDetailModal';
+import AparFormModal from '../components/AparFormModal';
 import { calculateHydrotest, formatDateDisplay } from '../../shared/utils/hydrotestUtils';
+import { showError, showConfirm, showSuccess } from '../../shared/utils/swalHelper';
 import {
   ArrowLeft,
-  QrCode,
   Calendar,
   PlayCircle,
   Clock,
   ChevronRight,
   AlertTriangle,
   Tag,
-  MapPin
+  MapPin,
+  Edit3,
+  Trash2,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function UserAparDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userApars, userInspections, aparTypes } = useApar();
+  const { userApars, rawApars, userInspections, aparTypes, currentUser, deleteApar } = useApar();
 
   const [selectedInspection, setSelectedInspection] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const apar = userApars.find((a) => a.id === id);
+  const apar = userApars.find((a) => a.id === id) || rawApars?.find((a) => a.id === id);
+
+  // Validasi Isolasi Rig: Cegah akses detail ke APAR milik Rig lain
+  useEffect(() => {
+    if (apar && currentUser?.rigId && apar.rigId !== currentUser.rigId) {
+      showError(
+        'Akses Dibatasi',
+        `APAR ini (${apar.assetCode}) bukan milik Rig Anda (${currentUser.rigId}). Terdaftar pada Rig ${apar.rigId}.`
+      );
+      navigate('/user/apars', { replace: true });
+    }
+  }, [apar, currentUser, navigate]);
 
   if (!apar) {
     return (
@@ -41,9 +57,41 @@ export default function UserAparDetail() {
     );
   }
 
+  // Jika APAR milik Rig lain, jangan render spesifikasi (akan dialihkan oleh useEffect)
+  if (currentUser?.rigId && apar.rigId !== currentUser.rigId) {
+    return null;
+  }
+
   const aparType = aparTypes.find((t) => t.id === apar.typeId);
   const hydrotest = calculateHydrotest(apar.manufactureDate);
   const aparHistory = userInspections.filter((i) => i.aparId === apar.id);
+
+  const handleDelete = async () => {
+    const hasHistory = aparHistory.length > 0;
+    let warningText = `Apakah Anda yakin ingin menghapus unit APAR ${apar.assetCode}? Data tabung akan dihapus permanen dari Supabase.`;
+    if (hasHistory) {
+      warningText = `PERINGATAN AUDIT: Unit APAR ${apar.assetCode} memiliki ${aparHistory.length} catatan riwayat inspeksi. Menghapus tabung ini akan menghapus seluruh data inspeksi dan tiket perbaikan terkait. Jika tabung rusak/tidak dipakai, disarankan mengganti status menjadi "Afkir". Tetap ingin menghapus?`;
+    }
+
+    const confirmed = await showConfirm({
+      title: `Hapus Unit ${apar.assetCode}?`,
+      text: warningText,
+      confirmText: 'Ya, Hapus Unit',
+      cancelText: 'Batal',
+      isDanger: true,
+      icon: 'warning'
+    });
+
+    if (confirmed) {
+      try {
+        await deleteApar(apar.id);
+        showSuccess('Unit Dihapus', `APAR ${apar.assetCode} berhasil dihapus.`);
+        navigate('/user/apars');
+      } catch (err) {
+        showError('Gagal Menghapus', err.message || 'Terjadi kesalahan sistem.');
+      }
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -145,40 +193,73 @@ export default function UserAparDetail() {
             </div>
           </div>
 
-          {/* Kolom Kanan: QR Tag Box (1/3) */}
-          <div className="bg-slate-50 rounded-xl border border-slate-200/80 p-5 flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
-              <QrCode className="w-3.5 h-3.5 text-red-600" />
-              IDENTITAS QR CODE
-            </span>
+          {/* Kolom Kanan: HSE Unit Management Plate (1/3) */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200/80 p-5 flex flex-col justify-between text-center space-y-4">
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
+                STATUS KESIAPAN K3
+              </span>
 
-            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-              <QRCodeSVG
-                value={apar.assetCode}
-                size={135}
-                level="M"
-                includeMargin={false}
-              />
+              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-2 text-left">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400 font-mono">Kode Tag:</span>
+                  <span className="font-mono font-bold text-slate-900">{apar.assetCode}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400 font-mono">Rig Operasional:</span>
+                  <span className="font-mono font-bold text-slate-900">{apar.rigId}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400 font-mono">Charge:</span>
+                  <span className="font-mono font-bold text-slate-900">{apar.chargeOwner || 'BMS'}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400 font-mono">Status Tabung:</span>
+                  <StatusBadge type="apar" status={apar.status} />
+                </div>
+              </div>
             </div>
 
-            <span className="font-mono font-bold text-xs text-slate-900 mt-3 block">
-              {apar.assetCode}
-            </span>
-            <span className="text-[10px] text-slate-400 font-mono mt-0.5">
-              Siap cetak stiker fisik
-            </span>
+            {/* Quick Actions Edit & Hapus */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="py-2 px-3 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="py-2 px-3 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Action Button: Start Inspect */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200/80">
+        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200/80 flex flex-col sm:flex-row gap-2.5">
           <button
             type="button"
             onClick={() => navigate(`/user/inspect/${apar.id}`)}
-            className="w-full py-3.5 px-6 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all btn-tactile"
+            className="flex-1 py-3 px-6 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all btn-tactile"
           >
             <PlayCircle className="w-5 h-5 text-white" />
             <span>Mulai Form Inspeksi Unit Ini</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="py-3 px-5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold text-sm rounded-xl transition-all shadow-xs flex items-center justify-center gap-2"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span>Edit Data APAR</span>
           </button>
         </div>
       </div>
@@ -235,6 +316,13 @@ export default function UserAparDetail() {
           onClose={() => setSelectedInspection(null)}
         />
       )}
+
+      {/* Modal Edit APAR */}
+      <AparFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        editData={apar}
+      />
     </div>
   );
 }
