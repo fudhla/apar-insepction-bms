@@ -4,7 +4,6 @@ import { useApar } from '../../shared/context/AparContext';
 import { showSuccess, showError, showConfirm } from '../../shared/utils/swalHelper';
 import {
   User,
-  Shield,
   Key,
   Users,
   Eye,
@@ -13,13 +12,8 @@ import {
   AlertCircle,
   RotateCcw,
   LogOut,
-  Building2,
   Lock,
-  ArrowLeft,
-  Database,
-  RefreshCw,
-  Cloud,
-  Check
+  ArrowLeft
 } from 'lucide-react';
 
 export default function UserProfile() {
@@ -30,12 +24,7 @@ export default function UserProfile() {
     changeUserPassword,
     logout,
     resetDemoData,
-    rigs,
-    isSyncing,
-    isCloudOnline,
-    isSupabaseConfigured,
-    loadDataFromSupabase,
-    seedInitialDataToSupabase
+    rigs
   } = useApar();
 
   const [oldPassword, setOldPassword] = useState('');
@@ -54,22 +43,6 @@ export default function UserProfile() {
     id: currentUser?.rigId,
     name: currentUser?.rigId,
     location: 'Area Operasional Lapangan'
-  };
-
-  const handleSeedSupabase = async () => {
-    const confirmed = await showConfirm({
-      title: 'Isi Data Awal ke Supabase?',
-      text: 'Seluruh 16 Rig, 7 Tipe APAR, 48 Akun HFO, 224 Tabung APAR, dan Riwayat akan diunggah ke database Supabase Cloud agar Proyek Admin dan Proyek User tersinkronisasi 100%.',
-      confirmText: 'Ya, Isi Data Sekarang',
-      icon: 'question'
-    });
-    if (confirmed) {
-      await seedInitialDataToSupabase();
-    }
-  };
-
-  const handleSyncCloud = async () => {
-    await loadDataFromSupabase({ silent: false });
   };
 
   const handlePasswordChange = async (e) => {
@@ -341,62 +314,7 @@ export default function UserProfile() {
         </form>
       </div>
 
-      {/* 4. Sinkronisasi Cloud Supabase */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
-              <Database className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
-                Sinkronisasi Cloud Supabase
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                    isCloudOnline
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : 'bg-amber-100 text-amber-800 border border-amber-300'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isCloudOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                    }`}
-                  />
-                  {isCloudOnline ? 'Terhubung' : 'Lokal Mode'}
-                </span>
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Sinkronkan data dengan Proyek Admin (6 tabel standar: rigs, apar_types, hfo_users, apars, inspections, maintenances).
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={handleSeedSupabase}
-            disabled={isSyncing}
-            className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-          >
-            <Cloud className="w-3.5 h-3.5" />
-            <span>{isSyncing ? 'Memproses...' : 'Isi Data Awal ke Supabase'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSyncCloud}
-            disabled={isSyncing}
-            className="py-2 px-3.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>Sinkronkan Ulang</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 5. Aksi Tambahan: Reset Demo Data & Logout */}
+      {/* 4. Aksi Tambahan: Reset Demo Data & Logout */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div>
           <span className="font-bold text-slate-800 block">Pengaturan Sesi & Database</span>
