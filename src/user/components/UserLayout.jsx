@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
 import { showConfirm, showToast, showError } from '../../shared/utils/swalHelper';
+import AppLogo from '../../shared/components/AppLogo';
 import {
   Home,
   Layers,
@@ -80,9 +81,7 @@ export default function UserLayout() {
         {/* Terminal Header */}
         <div className="p-5 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center text-white font-black text-sm tracking-widest shadow-sm">
-              BMS
-            </div>
+            <AppLogo size="md" />
             <div>
               <h2 className="font-bold text-sm tracking-tight text-white">APAR Rig Console</h2>
               <p className="text-[10px] font-mono text-slate-400">K3 Lapangan • User Modul</p>
@@ -227,9 +226,7 @@ export default function UserLayout() {
         {/* Mobile Top Bar (< 768px) - High Contrast Field Telemetry */}
         <header className="md:hidden sticky top-0 z-20 bg-[#0F172A] text-white border-b border-slate-800 px-4 h-14 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center text-white font-mono font-black text-xs shrink-0">
-              AP
-            </div>
+            <AppLogo size="sm" />
             <div className="truncate">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white truncate tracking-tight">

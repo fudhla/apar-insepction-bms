@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApar } from '../context/AparContext';
 import { showError, showToast } from '../utils/swalHelper';
+import AppLogo from '../components/AppLogo';
 import {
   Shield,
   ChevronRight,
@@ -109,7 +110,7 @@ export default function LoginPage() {
         <div className="bg-[#1E293B] text-white p-5 border-b border-slate-700 relative">
           <div className="h-1 bg-red-600 absolute top-0 left-0 right-0" />
 
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3.5">
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-slate-800/80 border border-slate-600/60 text-[10px] font-mono tracking-widest text-slate-300 uppercase">
               <Shield className="w-3.5 h-3.5 text-red-500" />
               <span>HSE Rig Terminal</span>
@@ -124,12 +125,17 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <h1 className="text-lg font-bold tracking-tight text-white">
-            APAR Tracking System
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-            Portal autentikasi Health & Safety Field Officer (HFO) Rig BMS.
-          </p>
+          <div className="flex items-center gap-3.5">
+            <AppLogo size="lg" />
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold tracking-tight text-white leading-tight">
+                BMS HSE • APAR Inspection
+              </h1>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Portal autentikasi Health & Safety Field Officer (HFO) Rig BMS.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="p-5 sm:p-6">
