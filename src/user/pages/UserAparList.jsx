@@ -102,7 +102,7 @@ export default function UserAparList() {
           className="px-4 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all btn-tactile shrink-0"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>+ Tambah APAR</span>
+          <span>Tambah APAR</span>
         </button>
       </div>
 
