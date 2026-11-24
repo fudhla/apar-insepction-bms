@@ -81,10 +81,15 @@ export default function UserLayout() {
         {/* Terminal Header */}
         <div className="p-5 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <AppLogo size="md" />
+            <AppLogo variant="icon" size="md" className="w-10 h-10" />
             <div>
-              <h2 className="font-bold text-sm tracking-tight text-white">APAR Rig Console</h2>
-              <p className="text-[10px] font-mono text-slate-400">K3 Lapangan • User Modul</p>
+              <h2 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
+                <span>BMS HSE</span>
+                <span className="text-[10px] font-mono font-bold text-red-400 bg-red-950/60 border border-red-800/60 px-1 rounded">
+                  APAR
+                </span>
+              </h2>
+              <p className="text-[10px] font-mono text-slate-400">APAR Rig Console</p>
             </div>
           </div>
 
@@ -226,7 +231,7 @@ export default function UserLayout() {
         {/* Mobile Top Bar (< 768px) - High Contrast Field Telemetry */}
         <header className="md:hidden sticky top-0 z-20 bg-[#0F172A] text-white border-b border-slate-800 px-4 h-14 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
-            <AppLogo size="sm" />
+            <AppLogo variant="icon" size="sm" className="w-9 h-9" />
             <div className="truncate">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white truncate tracking-tight">
@@ -236,9 +241,9 @@ export default function UserLayout() {
                   {currentRig.id}
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>{currentUser?.name}</span>
+              <div className="text-[10px] text-slate-400 truncate flex items-center gap-1 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="truncate">BMS HSE • {currentUser?.name}</span>
               </div>
             </div>
           </div>

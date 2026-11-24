@@ -125,16 +125,11 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3.5">
-            <AppLogo size="lg" />
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold tracking-tight text-white leading-tight">
-                BMS HSE • APAR Inspection
-              </h1>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Portal autentikasi Health & Safety Field Officer (HFO) Rig BMS.
-              </p>
-            </div>
+          <div className="pt-1">
+            <AppLogo variant="full" size="lg" />
+            <p className="text-[11px] text-slate-400 mt-2 font-mono">
+              Portal autentikasi Health & Safety Field Officer (HFO) Rig BMS.
+            </p>
           </div>
         </div>
 
