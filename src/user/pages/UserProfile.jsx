@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApar } from '../../shared/context/AparContext';
-import { showSuccess, showError, showConfirm } from '../../shared/utils/swalHelper';
+import { showSuccess, showError } from '../../shared/utils/swalHelper';
 import {
   User,
   Key,
@@ -10,8 +10,6 @@ import {
   EyeOff,
   CheckCircle2,
   AlertCircle,
-  RotateCcw,
-  LogOut,
   Lock,
   ArrowLeft
 } from 'lucide-react';
@@ -22,8 +20,6 @@ export default function UserProfile() {
     currentUser,
     teamHfos,
     changeUserPassword,
-    logout,
-    resetDemoData,
     rigs
   } = useApar();
 
@@ -37,7 +33,6 @@ export default function UserProfile() {
 
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [resetDone, setResetDone] = useState(false);
 
   const currentRig = rigs.find((r) => r.id === currentUser?.rigId) || {
     id: currentUser?.rigId,
@@ -72,36 +67,6 @@ export default function UserProfile() {
       );
     } catch (err) {
       showError('Gagal Mengubah Password', err.message || 'Password lama tidak cocok.');
-    }
-  };
-
-  const handleLogout = async () => {
-    const confirmed = await showConfirm({
-      title: 'Konfirmasi Keluar',
-      text: `Apakah Anda yakin ingin mengakhiri sesi HFO (${currentUser?.name}) di ${currentUser?.rigId}?`,
-      confirmText: 'Ya, Keluar Akun',
-      isDanger: true,
-      icon: 'question'
-    });
-
-    if (confirmed) {
-      logout();
-      navigate('/login');
-    }
-  };
-
-  const handleResetData = async () => {
-    const confirmed = await showConfirm({
-      title: 'Reset Database Demo?',
-      text: 'Seluruh data APAR, riwayat inspeksi, tiket perbaikan, dan password akan dikembalikan ke setelan awal pabrik.',
-      confirmText: 'Ya, Reset Sekarang',
-      isDanger: true
-    });
-
-    if (confirmed) {
-      resetDemoData();
-      await showSuccess('Database Direset', 'Semua data dan akun HFO telah dikembalikan ke kondisi awal.');
-      navigate('/login');
     }
   };
 
@@ -313,42 +278,6 @@ export default function UserProfile() {
           </div>
         </form>
       </div>
-
-      {/* 4. Aksi Tambahan: Reset Demo Data & Logout */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div>
-          <span className="font-bold text-slate-800 block">Pengaturan Sesi & Database</span>
-          <span className="text-[11px] text-slate-500">
-            Reset data seed awal atau keluar dari sesi aktif di perangkat ini.
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleResetData}
-            className="py-2 px-3 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 rounded-xl font-semibold transition-colors flex items-center gap-1.5 border border-slate-200"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Demo</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="py-2 px-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors flex items-center gap-1.5 btn-tactile shadow-sm"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Keluar Akun</span>
-          </button>
-        </div>
-      </div>
-
-      {resetDone && (
-        <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-medium text-center border border-emerald-200">
-          Data demo berhasil direset ke seed awal. Mengarahkan kembali ke halaman login...
-        </div>
-      )}
     </div>
   );
 }
