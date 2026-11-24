@@ -1,20 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApar } from '../context/AparContext';
-import { showSuccess, showError, showConfirm, showToast } from '../utils/swalHelper';
+import { showError, showToast } from '../utils/swalHelper';
 import {
   Shield,
   ChevronRight,
-  RotateCcw,
   User,
-  HardHat,
-  Check,
   AlertCircle,
   Lock,
   Eye,
-  EyeOff,
-  Building2,
-  Database
+  EyeOff
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -24,10 +19,7 @@ export default function LoginPage() {
     users,
     rawApars,
     loginHfo,
-    resetDemoData,
-    isCloudOnline,
-    isSyncing,
-    seedInitialDataToSupabase
+    isCloudOnline
   } = useApar();
 
   const [selectedRigId, setSelectedRigId] = useState('BMS-07');
@@ -35,7 +27,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [resetSuccess, setResetSuccess] = useState(false);
 
   // Filter 3 HFO untuk Rig yang dipilih
   const rigHfos = useMemo(() => {
@@ -99,33 +90,6 @@ export default function LoginPage() {
         setError(err.message);
         showError('Login Gagal', err.message);
       }
-    }
-  };
-
-  const handleSeedCloud = async () => {
-    const confirmed = await showConfirm({
-      title: 'Isi Data Awal ke Supabase?',
-      text: 'Seluruh 16 Rig, 7 Tipe APAR, 48 Akun HFO, 224 Tabung APAR, dan Riwayat akan diunggah ke database Supabase Cloud agar Proyek Admin dan Proyek User tersinkronisasi 100%.',
-      confirmText: 'Ya, Isi Data Sekarang',
-      icon: 'question'
-    });
-    if (confirmed) {
-      await seedInitialDataToSupabase();
-    }
-  };
-
-  const handleReset = async () => {
-    const confirmed = await showConfirm({
-      title: 'Reset Database Demo?',
-      text: 'Seluruh data APAR, riwayat inspeksi, tiket perbaikan, dan password akun HFO akan dikembalikan ke setelan awal.',
-      confirmText: 'Ya, Reset Sekarang',
-      isDanger: true
-    });
-
-    if (confirmed) {
-      resetDemoData();
-      setPassword('123456');
-      showSuccess('Database Direset', 'Semua data dan akun HFO telah dikembalikan ke kondisi seed awal.');
     }
   };
 
@@ -322,38 +286,12 @@ export default function LoginPage() {
               </div>
             </form>
 
-          {/* Reset Demo Data & Info Footer */}
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleReset}
-                className="inline-flex items-center gap-1.5 text-slate-500 hover:text-red-600 transition-colors text-[11px]"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset Demo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSeedCloud}
-                disabled={isSyncing}
-                className="inline-flex items-center gap-1 text-slate-500 hover:text-emerald-600 transition-colors text-[11px]"
-                title="Isi 6 tabel Supabase dari data seed lokal"
-              >
-                <Database className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isSyncing ? 'Mengisi...' : 'Isi Supabase'}</span>
-              </button>
-            </div>
-            <span className="font-mono text-[10px]">16 Rig • 48 HFO</span>
+          {/* Info Footer */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center text-xs text-slate-400">
+            <span className="font-mono text-[11px] text-slate-400">
+              16 Rig • 48 HFO
+            </span>
           </div>
-
-          {resetSuccess && (
-            <div className="mt-2 p-2 bg-emerald-50 text-emerald-800 text-xs rounded-lg text-center font-medium border border-emerald-200 flex items-center justify-center gap-1.5">
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Data demo & password berhasil direstorasi</span>
-            </div>
-          )}
         </div>
       </div>
     </div>
