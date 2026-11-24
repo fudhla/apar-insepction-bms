@@ -126,7 +126,7 @@ export default function LoginPage() {
           </div>
 
           <div className="pt-1">
-            <AppLogo variant="full" size="lg" />
+            <AppLogo variant="full" />
             <p className="text-[11px] text-slate-400 mt-2 font-mono">
               Portal autentikasi Health & Safety Field Officer (HFO) Rig BMS.
             </p>

@@ -81,7 +81,7 @@ export default function UserLayout() {
         {/* Terminal Header */}
         <div className="p-5 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <AppLogo variant="icon" size="md" className="w-10 h-10" />
+            <AppLogo variant="icon" />
             <div>
               <h2 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
                 <span>BMS HSE</span>
@@ -231,7 +231,7 @@ export default function UserLayout() {
         {/* Mobile Top Bar (< 768px) - High Contrast Field Telemetry */}
         <header className="md:hidden sticky top-0 z-20 bg-[#0F172A] text-white border-b border-slate-800 px-4 h-14 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
-            <AppLogo variant="icon" size="sm" className="w-9 h-9" />
+            <AppLogo variant="icon" className="w-9 h-9" />
             <div className="truncate">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white truncate tracking-tight">
