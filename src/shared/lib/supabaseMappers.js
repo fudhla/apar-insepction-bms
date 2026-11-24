@@ -221,7 +221,7 @@ export function toSupabaseInspection(insp) {
     inspector_name: insp.inspectorName || insp.inspector_name || 'HFO Lapangan',
     inspection_date: insp.inspectionDate || insp.inspection_date,
     category: insp.category || 'bulanan',
-    third_party_vendor: insp.category === 'tahunan' ? (insp.thirdPartyVendor || insp.third_party_vendor || '') : null,
+    third_party_vendor: insp.thirdPartyVendor || insp.third_party_vendor || null,
     checklist: mapChecklistToSupabase(insp.checklist),
     overall_status: insp.overallStatus || insp.overall_status || 'layak',
     notes: insp.notes || insp.issueDescription || null,

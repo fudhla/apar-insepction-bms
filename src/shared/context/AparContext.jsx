@@ -745,6 +745,183 @@ export function AparProvider({ children }) {
   };
 
   /**
+   * Verifikasi & Penutupan Tiket Perbaikan oleh Admin HSE (100% Langsung ke Supabase)
+   * Saat Admin menyetujui & menutup tiket (isApproved === true):
+   * 1. Tetap update maintenances (status: 'closed', resolved_at, admin_notes)
+   * 2. Tetap update apars (status: 'layak')
+   * 3. Insert otomatis ke tabel inspections Supabase agar langsung tampil di Log Riwayat User
+   * 4. Update state lokal
+   */
+  const verifyMaintenance = async (maintenanceId, isApproved = true, adminNotes = '') => {
+    if (!supabase) {
+      throw new Error('Koneksi Supabase belum aktif. Periksa koneksi internet Anda.');
+    }
+
+    const ticket = maintenances.find((m) => m.id === maintenanceId);
+    if (!ticket) {
+      throw new Error(`Tiket perbaikan dengan ID ${maintenanceId} tidak ditemukan.`);
+    }
+
+    const targetApar = apars.find((a) => a.id === ticket.aparId);
+    const resolvedAt = new Date().toISOString();
+    const today = resolvedAt.split('T')[0];
+
+    if (isApproved) {
+      // 1. Update status tiket maintenance di Supabase menjadi 'closed'
+      const { error: mErr } = await supabase
+        .from('maintenances')
+        .update({
+          status: 'closed',
+          resolved_at: resolvedAt,
+          admin_notes: adminNotes || 'Disetujui dan ditutup oleh Admin HSE'
+        })
+        .eq('id', maintenanceId);
+
+      if (mErr) {
+        throw new Error(`Gagal memperbarui tiket perbaikan di Supabase: ${mErr.message}`);
+      }
+
+      // 2. Update status tabung APAR di Supabase menjadi 'layak'
+      const { error: aErr } = await supabase
+        .from('apars')
+        .update({
+          status: 'layak',
+          last_inspection_date: today,
+          last_inspection_status: 'layak'
+        })
+        .eq('id', ticket.aparId);
+
+      if (aErr) {
+        throw new Error(`Gagal memperbarui status APAR di Supabase: ${aErr.message}`);
+      }
+
+      // Cek apakah tipe APAR adalah CO2 (tanpa pressure gauge)
+      const aparType = aparTypes.find((t) => t.id === targetApar?.typeId);
+      const isCo2 =
+        (aparType && !aparType.hasPressureGauge) ||
+        /co2/i.test(targetApar?.typeId || '') ||
+        /co2/i.test(targetApar?.typeName || '') ||
+        targetApar?.hasPressureGauge === false;
+
+      // Checklist 7 komponen (semua 'bagus', kecuali pressureGauge: 'na' jika tipe CO2)
+      const sanitizedChecklist = {
+        handle: 'bagus',
+        hose: 'bagus',
+        nozzle: 'bagus',
+        cylinderGuard: 'bagus',
+        pinHandle: 'bagus',
+        pressureGauge: isCo2 ? 'na' : 'bagus',
+        cylinder: 'bagus'
+      };
+
+      const inspId = `insp-fix-${Date.now()}`;
+      const inspectorName = ticket.evidenceUploadedBy || ticket.reportedBy || 'HFO Lapangan';
+      const actionTypeLabel = (ticket.actionType || 'perbaikan').toUpperCase();
+      const repairNotesStr = ticket.repairNotes || '';
+      const notesFormatted = `[Tindak Lanjut Selesai - ${actionTypeLabel}] ${repairNotesStr}${
+        adminNotes ? ' | Catatan Admin: ' + adminNotes : ''
+      }`.trim();
+      const inspectionPhoto = ticket.evidencePhoto || ticket.evidence_photo || null;
+      const vendorName = ticket.vendorName || 'Admin HSE';
+
+      // Objek inspeksi baru (format frontend)
+      const newInspection = {
+        id: inspId,
+        aparId: ticket.aparId,
+        assetCode: targetApar?.assetCode || ticket.assetCode || ticket.aparId,
+        rigId: ticket.rigId,
+        inspectorName,
+        inspectionDate: today,
+        category: 'perbaikan',
+        thirdPartyVendor: vendorName,
+        checklist: sanitizedChecklist,
+        overallStatus: 'layak',
+        notes: notesFormatted,
+        issueDescription: notesFormatted,
+        findingPhoto: inspectionPhoto,
+        inspectionPhoto: inspectionPhoto,
+        createdAt: resolvedAt
+      };
+
+      // 3. Tambahkan insert otomatis ke tabel inspections di Supabase
+      const supInspection = toSupabaseInspection(newInspection);
+      supInspection.third_party_vendor = vendorName;
+
+      const { error: iErr } = await supabase.from('inspections').insert(supInspection);
+      if (iErr) {
+        throw new Error(`Gagal mencatat log inspeksi perbaikan ke Supabase: ${iErr.message}`);
+      }
+
+      // 4. Update state lokal setelah seluruh query Supabase 100% SUKSES
+      setMaintenances((prev) =>
+        prev.map((m) =>
+          m.id === maintenanceId
+            ? {
+                ...m,
+                status: 'closed',
+                resolvedAt,
+                adminNotes: adminNotes || 'Disetujui dan ditutup oleh Admin HSE',
+                updatedAt: today
+              }
+            : m
+        )
+      );
+
+      setApars((prev) =>
+        prev.map((a) =>
+          a.id === ticket.aparId
+            ? {
+                ...a,
+                status: 'layak',
+                lastInspectionDate: today,
+                lastInspectionStatus: 'layak',
+                lastInspectedBy: inspectorName
+              }
+            : a
+        )
+      );
+
+      setInspections((prev) => [newInspection, ...prev]);
+
+      showToast('success', 'Tiket disetujui & log inspeksi perbaikan tercatat di Supabase');
+      fetchAllData({ silent: true }).catch(() => {});
+
+      return { success: true, inspection: newInspection };
+    } else {
+      // Jika Admin menolak verifikasi (isApproved === false)
+      const { error: rejErr } = await supabase
+        .from('maintenances')
+        .update({
+          status: 'open',
+          admin_notes: adminNotes || 'Perbaikan ditolak oleh Admin HSE, mohon periksa kembali'
+        })
+        .eq('id', maintenanceId);
+
+      if (rejErr) {
+        throw new Error(`Gagal memperbarui status penolakan tiket di Supabase: ${rejErr.message}`);
+      }
+
+      setMaintenances((prev) =>
+        prev.map((m) =>
+          m.id === maintenanceId
+            ? {
+                ...m,
+                status: 'open',
+                adminNotes: adminNotes || 'Perbaikan ditolak oleh Admin HSE, mohon periksa kembali',
+                updatedAt: today
+              }
+            : m
+        )
+      );
+
+      showToast('info', 'Tiket perbaikan dikembalikan ke status Open');
+      fetchAllData({ silent: true }).catch(() => {});
+
+      return { success: false };
+    }
+  };
+
+  /**
    * CREATE APAR (Khusus Rig aktif)
    * Menyimpan langsung ke tabel apars di Supabase dan menyelaraskan ke state lokal
    */
@@ -981,6 +1158,7 @@ export function AparProvider({ children }) {
     logout,
     submitInspection,
     uploadRepairEvidence,
+    verifyMaintenance,
     createApar,
     updateApar,
     deleteApar,
