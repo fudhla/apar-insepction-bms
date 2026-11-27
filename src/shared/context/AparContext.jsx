@@ -103,7 +103,7 @@ export function AparProvider({ children }) {
         supabase.from('apar_types').select('*').order('id'),
         supabase.from('hfo_users').select('*').order('name'),
         supabase.from('apars').select('*').order('asset_code'),
-        supabase.from('inspections').select('*').order('inspection_date', { ascending: false }),
+        supabase.from('inspections').select('*').order('inspection_date', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('maintenances').select('*').order('created_at', { ascending: false })
       ]);
 
@@ -426,7 +426,11 @@ export function AparProvider({ children }) {
     if (!currentUser?.rigId) return [];
     return inspections
       .filter((i) => i.rigId === currentUser.rigId)
-      .sort((a, b) => new Date(b.inspectionDate || 0) - new Date(a.inspectionDate || 0));
+      .sort((a, b) => {
+        const dateDiff = new Date(b.inspectionDate || 0) - new Date(a.inspectionDate || 0);
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
   }, [inspections, currentUser]);
 
   const userMaintenances = useMemo(() => {
@@ -785,9 +789,7 @@ export function AparProvider({ children }) {
       const { error: aErr } = await supabase
         .from('apars')
         .update({
-          status: 'layak',
-          last_inspection_date: today,
-          last_inspection_status: 'layak'
+          status: 'layak'
         })
         .eq('id', ticket.aparId);
 

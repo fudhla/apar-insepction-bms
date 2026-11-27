@@ -57,7 +57,11 @@ export default function UserInspectForm() {
     if (!userInspections || !aparId) return null;
     return userInspections
       .filter((i) => i.aparId === aparId)
-      .sort((a, b) => new Date(b.inspectionDate || b.createdAt || 0) - new Date(a.inspectionDate || a.createdAt || 0))[0] || null;
+      .sort((a, b) => {
+        const dateDiff = new Date(b.inspectionDate || 0) - new Date(a.inspectionDate || 0);
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      })[0] || null;
   }, [userInspections, aparId]);
 
   // Cari tiket perbaikan aktif untuk tabung ini
