@@ -16,7 +16,8 @@ import {
   Building,
   CheckCircle2,
   Trash2,
-  Wrench
+  Wrench,
+  Clock
 } from 'lucide-react';
 
 const CHECKLIST_ITEMS = [
@@ -66,6 +67,9 @@ export default function UserInspectForm() {
       .filter((m) => m.aparId === aparId && ['open', 'in_progress', 'pending_review'].includes(m.status))
       .sort((a, b) => new Date(b.createdAt || b.reportedDate || 0) - new Date(a.createdAt || a.reportedDate || 0))[0] || null;
   }, [userMaintenances, aparId]);
+
+  const isPendingReview = activeMaintenance?.status === 'pending_review';
+  const isOpenOrInProgress = activeMaintenance && ['open', 'in_progress'].includes(activeMaintenance.status);
 
   // Form States
   const [inspectionDate, setInspectionDate] = useState(
@@ -162,6 +166,13 @@ export default function UserInspectForm() {
   const hasDamage = damagedItems.length > 0;
 
   const handleToggle = (key, value) => {
+    if (isPendingReview) {
+      showError(
+        'Form Dinonaktifkan',
+        'Bukti perbaikan untuk APAR ini sudah dikirim dan sedang Menunggu Verifikasi Admin.'
+      );
+      return;
+    }
     setChecklist((prev) => ({
       ...prev,
       [key]: value
@@ -169,6 +180,7 @@ export default function UserInspectForm() {
   };
 
   const handlePhotoUpload = async (e) => {
+    if (isPendingReview) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -186,6 +198,14 @@ export default function UserInspectForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isPendingReview) {
+      showError(
+        'Inspeksi Dinonaktifkan',
+        'Bukti perbaikan untuk APAR ini sudah dikirim dan sedang Menunggu Verifikasi Admin. Silakan periksa statusnya di Halaman Perbaikan.'
+      );
+      return;
+    }
 
     if (category === 'tahunan' && !thirdPartyVendor.trim()) {
       showError(
@@ -366,20 +386,19 @@ export default function UserInspectForm() {
         </div>
       </div>
 
-      {/* Banner Peringatan jika APAR Berstatus Perlu Perbaikan */}
-      {isDamagedStatus && (
-        <div className="bg-rose-50 border border-rose-200/90 rounded-xl p-3 sm:py-2.5 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-150">
+      {/* 1. Banner Biru: Jika Tiket Berstatus pending_review (Menunggu Verifikasi Admin) */}
+      {isPendingReview && (
+        <div className="bg-blue-50 border border-blue-200/90 rounded-xl p-3 sm:py-3 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150">
           <div className="flex items-start sm:items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 text-rose-600">
-              <AlertTriangle className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 text-blue-600">
+              <Clock className="w-4.5 h-4.5" />
             </div>
             <div className="text-xs">
-              <span className="font-bold text-rose-950 block">
-                Status APAR saat ini: Perlu Perbaikan
+              <span className="font-bold text-blue-950 block text-xs sm:text-sm">
+                Bukti perbaikan untuk APAR ini sudah dikirim dan sedang Menunggu Verifikasi Admin.
               </span>
-              <p className="text-[11px] text-rose-800 leading-relaxed">
-                Dilaporkan oleh <strong className="font-semibold text-rose-950">{latestInspection?.inspectorName || apar.lastInspectedBy || 'HFO Lapangan'}</strong> pada{' '}
-                <span className="font-mono font-medium">{formatDateDisplay(latestInspection?.inspectionDate || apar.lastInspectionDate)}</span>. Komponen rusak ditandai merah di bawah.
+              <p className="text-[11px] text-blue-800 leading-relaxed mt-0.5">
+                Tiket perbaikan ({activeMaintenance.id}) telah dilengkapi bukti fisik oleh <strong className="font-semibold text-blue-950">{activeMaintenance.evidenceUploadedBy || 'HFO Lapangan'}</strong>. Tombol submit dinonaktifkan untuk mencegah pembuatan tiket ganda.
               </p>
             </div>
           </div>
@@ -387,7 +406,35 @@ export default function UserInspectForm() {
           <button
             type="button"
             onClick={() => navigate('/user/maintenances')}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 shadow-sm btn-tactile transition-colors"
+            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 shadow-sm btn-tactile transition-colors"
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Lihat Status di Halaman Perbaikan</span>
+          </button>
+        </div>
+      )}
+
+      {/* 2. Banner Peringatan: Jika Tiket Berstatus open atau in_progress (Belum Unggah Bukti Selesai) */}
+      {!isPendingReview && (isOpenOrInProgress || isDamagedStatus) && (
+        <div className="bg-amber-50 border border-amber-200/90 rounded-xl p-3 sm:py-2.5 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in fade-in duration-150">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 text-amber-700">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div className="text-xs">
+              <span className="font-bold text-amber-950 block">
+                Tiket Perbaikan Sedang Aktif ({activeMaintenance?.status === 'in_progress' ? 'Sedang Diproses' : 'Status: Open'})
+              </span>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Unit APAR ini memiliki tiket perbaikan aktif. Harap selesaikan unggah bukti tindakan perbaikan melalui tombol di samping daripada membuat tiket baru.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/user/maintenances')}
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 shadow-sm btn-tactile transition-colors"
           >
             <Wrench className="w-3.5 h-3.5" />
             <span>Buka Halaman Perbaikan</span>
@@ -527,9 +574,14 @@ export default function UserInspectForm() {
                         {/* Tombol Bagus */}
                         <button
                           type="button"
+                          disabled={isPendingReview}
                           onClick={() => handleToggle(item.key, 'bagus')}
                           className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-                            currentVal === 'bagus'
+                            isPendingReview
+                              ? currentVal === 'bagus'
+                                ? 'bg-emerald-600/70 text-white cursor-not-allowed'
+                                : 'text-slate-400 cursor-not-allowed'
+                              : currentVal === 'bagus'
                               ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
@@ -541,9 +593,14 @@ export default function UserInspectForm() {
                         {/* Tombol Rusak */}
                         <button
                           type="button"
+                          disabled={isPendingReview}
                           onClick={() => handleToggle(item.key, 'rusak')}
                           className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-                            currentVal === 'rusak'
+                            isPendingReview
+                              ? currentVal === 'rusak'
+                                ? 'bg-rose-600/70 text-white cursor-not-allowed'
+                                : 'text-slate-400 cursor-not-allowed'
+                              : currentVal === 'rusak'
                               ? 'bg-rose-600 text-white shadow-sm ring-1 ring-rose-700'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
@@ -683,9 +740,19 @@ export default function UserInspectForm() {
         )}
 
         {/* 5. Baris Bawah Ringkas: Ringkasan Status & Tombol Simpan Inspeksi */}
-        <div className="bg-white rounded-xl border border-slate-200/90 py-2 px-3.5 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="bg-white rounded-xl border border-slate-200/90 py-2.5 px-3.5 sm:px-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 text-xs">
-            {hasDamage ? (
+            {isPendingReview ? (
+              <>
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 animate-ping" />
+                <span className="font-bold text-blue-800">
+                  Menunggu Verifikasi Admin
+                </span>
+                <span className="text-slate-400 font-mono text-[11px] hidden sm:inline">
+                  • Submit Dinonaktifkan (Cegah Tiket Ganda)
+                </span>
+              </>
+            ) : hasDamage ? (
               <>
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0 animate-pulse" />
                 <span className="font-bold text-rose-700">
@@ -708,24 +775,46 @@ export default function UserInspectForm() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting || isCompressing}
-            className={`py-2 px-6 rounded-xl text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 btn-tactile ${
-              hasDamage
-                ? 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800'
-                : 'bg-red-600 hover:bg-red-700 active:bg-red-800'
-            }`}
-          >
-            <Save className="w-4 h-4" />
-            <span>
-              {isSubmitting
-                ? 'Menyimpan...'
-                : hasDamage
-                ? 'Simpan & Buat Tiket Rusak'
-                : 'Simpan Hasil Inspeksi'}
-            </span>
-          </button>
+          {isPendingReview ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/user/maintenances')}
+                className="py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-1.5 btn-tactile"
+              >
+                <Wrench className="w-4 h-4" />
+                <span>Lihat Status di Halaman Perbaikan</span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="py-2 px-4 rounded-xl bg-slate-200 text-slate-400 font-bold text-xs sm:text-sm cursor-not-allowed flex items-center justify-center gap-1.5 select-none"
+                title="Tombol submit dinonaktifkan karena sedang menunggu verifikasi Admin"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Submit Terkunci</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSubmitting || isCompressing}
+              className={`py-2 px-6 rounded-xl text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 btn-tactile ${
+                hasDamage
+                  ? 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800'
+                  : 'bg-red-600 hover:bg-red-700 active:bg-red-800'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              <span>
+                {isSubmitting
+                  ? 'Menyimpan...'
+                  : hasDamage
+                  ? 'Simpan & Buat Tiket Rusak'
+                  : 'Simpan Hasil Inspeksi'}
+              </span>
+            </button>
+          )}
         </div>
       </form>
     </div>

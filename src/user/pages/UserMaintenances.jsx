@@ -214,7 +214,7 @@ export default function UserMaintenances() {
                           src={ticket.findingPhoto}
                           alt="Foto Kerusakan"
                           onClick={() => setSelectedPhotoModal({ title: `Foto Kerusakan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
-                          className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                          className="h-36 sm:h-44 w-full sm:w-64 object-cover rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
                         />
                       </div>
                     )}
@@ -263,7 +263,7 @@ export default function UserMaintenances() {
                           src={ticket.findingPhoto}
                           alt="Foto Kerusakan"
                           onClick={() => setSelectedPhotoModal({ title: `Foto Kerusakan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
-                          className="w-24 h-24 object-cover rounded-xl border border-amber-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                          className="h-36 sm:h-44 w-full sm:w-64 object-cover rounded-lg border border-amber-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
                         />
                       </div>
                     )}
@@ -307,7 +307,7 @@ export default function UserMaintenances() {
                             src={ticket.findingPhoto}
                             alt="Temuan Awal (Before)"
                             onClick={() => setSelectedPhotoModal({ title: `Foto Temuan Awal (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
-                            className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                            className="h-36 sm:h-44 w-full object-cover rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
@@ -320,7 +320,7 @@ export default function UserMaintenances() {
                             src={ticket.evidencePhoto}
                             alt="Bukti Selesai (After)"
                             onClick={() => setSelectedPhotoModal({ title: `Foto Bukti Perbaikan (After) — ${ticket.assetCode}`, src: ticket.evidencePhoto })}
-                            className="w-full h-24 object-cover rounded-xl border border-blue-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                            className="h-36 sm:h-44 w-full object-cover rounded-lg border border-blue-300 shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
@@ -347,7 +347,7 @@ export default function UserMaintenances() {
                             src={ticket.findingPhoto}
                             alt="Before"
                             onClick={() => setSelectedPhotoModal({ title: `Foto Sebelum (Before) — ${ticket.assetCode}`, src: ticket.findingPhoto })}
-                            className="w-full h-24 object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
+                            className="h-36 sm:h-44 w-full object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
@@ -360,7 +360,7 @@ export default function UserMaintenances() {
                             src={ticket.evidencePhoto}
                             alt="After"
                             onClick={() => setSelectedPhotoModal({ title: `Foto Sesudah (After) — ${ticket.assetCode}`, src: ticket.evidencePhoto })}
-                            className="w-full h-24 object-cover rounded-xl border border-emerald-300 cursor-pointer hover:opacity-90 transition-opacity"
+                            className="h-36 sm:h-44 w-full object-cover rounded-lg border border-emerald-300 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         </div>
                       )}
